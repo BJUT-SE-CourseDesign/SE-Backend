@@ -1,4 +1,8 @@
+from typing import Tuple, Optional, Any
 from fastapi import FastAPI
+from fastapi_sessions import SessionInfo
+from fastapi import Depends, Response, HTTPException, APIRouter
+
 import auth
 
 app = FastAPI()
@@ -6,5 +10,10 @@ app = FastAPI()
 app.include_router(auth.router)
 
 @app.get('/')
-def index():
-    return {'message': 'You have successfully created FastAPI service!'}
+def index(
+    session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info:
+        return {"status": 200, 'message': 'Welcome to SE Backend!'}
+    else:
+        return {"status": 403, 'message': "Not logged in! We don't welcome you!"}
