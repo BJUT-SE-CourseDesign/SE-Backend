@@ -30,7 +30,6 @@ class PaperMetaInfo(BaseModel):
     Year: int
 
 
-
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
         folder: folder.FolderInfo,
@@ -88,9 +87,9 @@ async def paperMetadata(
             detail="Not Authenticated"
         )
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = [paper_meta.PaperID, paper_meta.Title, paper_meta.Authors, paper_meta.Conference, paper_meta.Abstract,
-                  paper_meta.Keywords, paper_meta.Abstract]
-        DBConn.execute("UPDATE Paper_Meta SET Title = ?, Authors = ?, Conference = ?, Abstract = ?, Keywords = ?, Year = ?", params)
+        params = [paper_meta.Title, paper_meta.Authors, paper_meta.Conference, paper_meta.Abstract,
+                  paper_meta.Keywords, paper_meta.Year, paper_meta.PaperID]
+        DBConn.execute("UPDATE Paper_Meta SET Title = ?, Authors = ?, Conference = ?, Abstract = ?, Keywords = ?, Year = ? WHERE PID = ?", params)
         return {"status": 200, "message": "Paper Meta updated successfully.", "pid": paper_meta.PaperID}
 
 
