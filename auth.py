@@ -131,7 +131,7 @@ async def userRegister(
 
 
 @router.post("/users/modifypassword", tags=["users"])
-async def userPasswordModify(
+async def userModifyPassword(
     user: ModifyPasswordUserInfo,
     response: Response,
     session_info: Optional[SessionInfo] = Depends(curSession)

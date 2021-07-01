@@ -29,7 +29,7 @@ class addFolderInfo(BaseModel):
 
 # 在添加一个文件夹的时候，需要选择是否共享
 @router.post("/folder/add", tags=["users"])
-async def userAddFolder(
+async def folderAdd(
         folder: addFolderInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -50,7 +50,7 @@ async def userAddFolder(
 
 
 @router.get("/folder/list", tags=["users"])
-async def userListFolder(
+async def folderList(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     folder_list = list()

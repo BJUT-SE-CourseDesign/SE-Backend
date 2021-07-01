@@ -32,7 +32,30 @@ class PaperMetaInfo(BaseModel):
 
 
 @router.post("/paper/import", tags=["users"])
-async def userImportPaper(
+async def paperImport(
+        folder: folder.FolderInfo,
+        session_data: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_data is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        fid = list()
+        fid.append(folder.FolderID)
+        DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
+        PID = DBConn.execute("SELECT MAX(PID) FROM Paper WHERE FID = ?", fid)
+        pid = list()
+        for p in PID:
+            pid.append(p[0])
+            break
+        DBConn.execute("INSERT INTO Paper_Meta(PID) VALUES (?)", pid)
+        return {"status": 200, "message": "Paper imported successfully.", "pid": pid}
+
+
+@router.post("/paper/folder", tags=["users"])
+async def paperFolder(
         folder: folder.FolderInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -55,7 +78,7 @@ async def userImportPaper(
 
 
 @router.post("/paper/metadata", tags=["users"])
-async def userPaperMetadata(
+async def paperMetadata(
         paper_meta: PaperMetaInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -73,7 +96,7 @@ async def userPaperMetadata(
 
 # 需要修改数据库中对于外键的设置
 @router.post("/paper/delete", tags=["users"])
-async def userPaperDelete(
+async def paperDelete(
         paper: PaperInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -97,7 +120,7 @@ async def userPaperDelete(
 # **参数：搜索关键字集合”keywords”[]、搜索分类集合”types” [“title”, ”author”, ”keyword”]
 # **返回：匹配成功文献PID
 @router.post("/paper/query", tags=["users"])
-async def userPaperQuery(
+async def paperQuery(
         paper: PaperInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
