@@ -2,7 +2,7 @@
 from typing import Tuple, Optional, Any
 
 from pydantic import BaseModel
-from fastapi import Depends, Response, HTTPException, APIRouter, Body
+from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile
 
 from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
@@ -12,6 +12,7 @@ import config
 import hashlib
 import auth
 import folder
+import time
 
 router = APIRouter()
 
@@ -30,9 +31,10 @@ class PaperMetaInfo(BaseModel):
     Year: int
 
 
+# 还需要添加自动加入全部文件夹的功能
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
-        folder: folder.FolderInfo,
+        file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     if session_data is None:
@@ -40,22 +42,21 @@ async def paperImport(
             status_code=403,
             detail="Not Authenticated"
         )
-    with sqlite3.connect(config.DB_PATH) as DBConn:
-        fid = list()
-        fid.append(folder.FolderID)
-        DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
-        PID = DBConn.execute("SELECT MAX(PID) FROM Paper WHERE FID = ?", fid)
-        pid = list()
-        for p in PID:
-            pid.append(p[0])
-            break
-        DBConn.execute("INSERT INTO Paper_Meta(PID) VALUES (?)", pid)
-        return {"status": 200, "message": "Paper imported successfully.", "pid": pid}
+    start = time.time()
+    try:
+        res = await file.read()
+        fileUploadPath = config.UPLOAD_PATH + file.filename # Security
+        with open(fileUploadPath, "wb") as f:
+            f.write(res)
+        return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'filename': file.filename}
+    except Exception as e:
+        return {"status": 400, "message": str(e), 'time': time.time() - start, 'filename': file.filename}
 
 
 @router.post("/paper/folder", tags=["users"])
 async def paperFolder(
-        folder: folder.FolderInfo,
+        folder_info: folder.FolderInfo,
+        paper_info: PaperInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     if session_data is None:
@@ -65,13 +66,10 @@ async def paperFolder(
         )
     with sqlite3.connect(config.DB_PATH) as DBConn:
         fid = list()
-        fid.append(folder.FolderID)
+        fid.append(folder_info.FolderID)
         DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
-        PID = DBConn.execute("SELECT MAX(PID) FROM Paper WHERE FID = ?", fid)
         pid = list()
-        for p in PID:
-            pid.append(p[0])
-            break
+        pid.append(paper_info.PaperID)
         DBConn.execute("INSERT INTO Paper_Meta(PID) VALUES (?)", pid)
         return {"status": 200, "message": "Paper imported successfully.", "pid": pid}
 
@@ -107,7 +105,7 @@ async def paperDelete(
     pid = list()
     pid.append(paper.PaperID)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        DBConn.execute("DELETE Paper WHERE PID = ?", pid)
+        DBConn.execute("DELETE FROM Paper WHERE PID = ?", pid)
         return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
 
 
@@ -133,4 +131,45 @@ async def paperQuery(
         return {"status": 200, "message": "Paper queried successfully.", "pids": pids}
 
 
+@router.post("/paper/lock", tags=["users"])
+async def paperLock(
+        paper: PaperInfo,
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    params = list()
+    params.append(paper.PaperID)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT PID FROM PAPER WHERE PID = ? AND Lock = false", params)
+        if cursor.rowcount != 0:
+            DBConn.execute("Update Paper SET Lock = true WHERE PID = ?", params)
+            return {"status": 200, "message": "Paper locked successfully.", "lock_result": True}
+        else:
+            return {"status": 202, "message": "Fail to lock paper, it is locked already.", "lock_result": False}
+
+
+#未完成，问题在于如果没有锁的持有者，无法判断unlock可否执行
+@router.post("/paper/unlock", tags=["users"])
+async def paperUnlock(
+        paper: PaperInfo,
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    params = list()
+    params.append(paper.PaperID)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT PID FROM PAPER WHERE PID = ? AND Lock = true", params)
+        if cursor.rowcount != 0:
+            DBConn.execute("Update Paper SET Lock = false WHERE PID = ?", params)
+            return {"status": 200, "message": "Paper unlocked successfully.", "unlock_result": True}
+        else:
+            return {"status": 202, "message": "Fail to unlock paper, it is unlocked already.", "unlock_result": False}
 
