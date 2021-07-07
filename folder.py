@@ -71,7 +71,7 @@ async def folderAdd(
         return {"status": 200, "message": "Folder added successfully.", "fid": fid}
 
 
-#UNFINISHED，没有考虑到该文件夹如果被共享的处理方式
+# UNFINISHED，没有考虑到该文件夹如果被共享的处理方式
 @router.post("/folder/delete", tags=["users"])
 async def folderDelete(
         folder: FolderDeleteInfo,
@@ -86,7 +86,7 @@ async def folderDelete(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND UID = ?", params)
         if cursor.rowcount != 1:
-            return {"status": 202, "message": "Failed to deletre folder.", "delete_result": False}
+            return {"status": 202, "message": "Failed to delete folder.", "delete_result": False}
         else:
             param = list()
             param.append(folder.FolderID)
@@ -205,35 +205,46 @@ async def folderJoin(
             detail="Not Authenticated"
         )
     param = list()
-    param.append(folder.FUIID)
+    param.append(folder.FUUID)
     fid = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT FID, Shrared FROM Folder WHERE FUUID = ?", param)
+        cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE FUUID = ?", param)
         for row in cursor:
             fid = row[0]
             flag = row[1]
             break
         if not flag:
-            return {"status": 202, "message": "Failed to join folder, this folder is not shared.", "FUUID": folder.FUIID}
+            return {"status": 202, "message": "Failed to join folder, this folder is not shared.", "FUUID": folder.FUUID}
         else:
+            params = list()
+            params.append(session_info[1].username)
+            params.append(fid)
+            print(params)
+            cursor = DBConn.execute("SELECT Username FROM Folder WHERE Username = ? AND FID = ?", params)
+
+            for row in cursor:
+                if row[0] == session_info[1].username:
+                    return {"status": 202, "message": "Failed to join folder, you are the owner of this folder.",
+                        "FUUID": folder.FUUID}
             params = list()
             params.append(session_info[1].userID)
             params.append(fid)
-            cursor = DBConn.execute("SELECT UID, FID FROM Folder WHERE UID = ? AND FID = ?", params)
-            if cursor.rowcount != 0:
-                return {"status": 202, "message": "Failed to join folder, you are already in the share list", "FUUID": folder.FUIID}
-            else:
-                DBConn.execute("INSERT INTO User_Folder(UID, FID) VALUES (?, ?)", params)
-                return {"status": 200, "message": "Folder joined successfully.", "FUUID": folder.FUIID}
+            cursor2 = DBConn.execute("SELECT UID FROM User_Folder WHERE UID = ? AND FID = ?", params)
+            for row in cursor2:
+                if row[0] == session_info[1].userID:
+                    return {"status": 201, "message": "Failed to join folder, you are already int the list.",
+                            "FUUID": folder.FUUID}
+            DBConn.execute("INSERT INTO User_Folder(UID, FID) VALUES (?, ?)", params)
+            return {"status": 200, "message": "Folder joined successfully.", "FUUID": folder.FUUID}
 
 
-@router.get("/folder/memberlist", tags=["users"])
+@router.post("/folder/memberlist", tags=["users"])
 async def folderMemberlist(
-        folder: FolderInfo,
+        folder: FolderShareInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     params = list()
-    params.append(session_info[1].userID)
+    params.append(session_info[1].username)
     params.append(folder.FolderID)
     member_list = list()
     if session_info is None:
@@ -242,16 +253,16 @@ async def folderMemberlist(
             detail="Not Authenticated"
         )
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE UID = ? AND FID = ?", params)
-        if cursor.rowcount != 1:
-            return {"status": 202, "message": "Failed to get member list", "sharedUserList": member_list}
+        cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE Username = ? AND FID = ?", params)
+        fid = 0
+        shared = False
+        for row in cursor:
+            fid = row[0]
+            shared = row[1]
+            break
+        if fid != folder.FolderID:
+            return {"status": 202, "message": "Failed to get member list.", "sharedUserList": member_list}
         else:
-            fid = 0
-            shared = False
-            for row in cursor:
-                fid = row[0]
-                shared = row[1]
-                break
             param = list()
             param.append(fid)
             members = DBConn.execute("SELECT UID FROM User_Folder WHERE FID = ?", param)
@@ -263,6 +274,8 @@ async def folderMemberlist(
                 return {"status": 201, "message": "Folder member shown successfully, however this folder is currently not shared.", "sharedUserList": member_list}
 
 
+
+# 待测试
 @router.post("/folder/deletemember", tags=["users"])
 async def folderDeleteMember(
         folder: FolderInfo,

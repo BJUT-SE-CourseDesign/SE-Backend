@@ -31,9 +31,10 @@ class PaperMetaInfo(BaseModel):
     Year: int
 
 
-# 还需要添加自动加入全部文件夹的功能
+# import和folder逻辑有问题，import时候该如何分配PID？
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
+        folder_info: folder.FolderInfo,
         file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -48,7 +49,17 @@ async def paperImport(
         fileUploadPath = config.UPLOAD_PATH + file.filename # Security
         with open(fileUploadPath, "wb") as f:
             f.write(res)
-        return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'filename': file.filename}
+        fid = list()
+        fid.append(folder_info.FolderID)
+        DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
+        cursor = DBConn.execute("SELECT MAX(PID) FROM Paper")
+        pid = 0
+        for r in cursor:
+            pid = r[0]
+            break
+        params = [pid, session_info[1].username, time.time(), fileUploadPath]
+        DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, 0, ?)", params)
+        return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'PID': pid}
     except Exception as e:
         return {"status": 400, "message": str(e), 'time': time.time() - start, 'filename': file.filename}
 
@@ -74,6 +85,7 @@ async def paperFolder(
         return {"status": 200, "message": "Paper imported successfully.", "pid": pid}
 
 
+# 少自动解析
 @router.post("/paper/metadata", tags=["users"])
 async def paperMetadata(
         paper_meta: PaperMetaInfo,
@@ -91,7 +103,6 @@ async def paperMetadata(
         return {"status": 200, "message": "Paper Meta updated successfully.", "pid": paper_meta.PaperID}
 
 
-# 需要修改数据库中对于外键的设置
 @router.post("/paper/delete", tags=["users"])
 async def paperDelete(
         paper: PaperInfo,
@@ -152,7 +163,7 @@ async def paperLock(
             return {"status": 202, "message": "Fail to lock paper, it is locked already.", "lock_result": False}
 
 
-#未完成，问题在于如果没有锁的持有者，无法判断unlock可否执行
+# 未完成，问题在于如果没有锁的持有者，无法判断unlock可否执行
 @router.post("/paper/unlock", tags=["users"])
 async def paperUnlock(
         paper: PaperInfo,
