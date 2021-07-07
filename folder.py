@@ -110,9 +110,8 @@ async def folderList(
             status_code=403,
             detail="Not Authenticated"
         )
-
     param = list()
-    param.append(session_info[1].userID)
+    param.append(session_info[1].username)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Name, FID FROM Folder WHERE Username = ?", param)
         for row in cursor:
