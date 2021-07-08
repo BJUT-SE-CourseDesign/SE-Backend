@@ -76,7 +76,7 @@ async def adminUserModifyPassword(
 
 
 @router.post("/admin/user/delete", tags=["users"])
-async def adminUserDelelte(
+async def adminUserDelete(
     user: AdminUserNameInfo,
     session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):

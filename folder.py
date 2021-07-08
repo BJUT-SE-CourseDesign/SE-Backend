@@ -273,7 +273,6 @@ async def folderMemberlist(
                 return {"status": 201, "message": "Folder member shown successfully, however this folder is currently not shared.", "sharedUserList": member_list}
 
 
-
 # 待测试
 @router.post("/folder/deletemember", tags=["users"])
 async def folderDeleteMember(
