@@ -8,13 +8,8 @@ from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
 from starlette.responses import FileResponse
 
-import sqlite3
-import config
-import hashlib
-import auth
-import folder
-import time
-import jieba
+import sqlite3, time, jieba, os
+import config, auth, folder, utils
 
 router = APIRouter()
 types = {"Title": 1, "Authors": 2, "Conference": 3, "Abstract": 4, "Keywords": 5, "Year": 6}
@@ -48,35 +43,55 @@ class PaperDownloadInfo(BaseModel):
 class PaperUploadInfo(BaseModel):
     PaperID: int
 
+async def PaperDelete_(
+        PID: int
+) -> bool:
+    params = (PID, )
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        # Step 1: Delete Relation Between Paper And Folder
+        cursor = DBConn.execute("DELETE FROM Paper WHERE PID = ?", params)
+        if cursor.rowcount == 0: return False
 
-# import和folder逻辑有问题，import时候该如何分配PID？
+        # Step 2: Delete Metadata of Paper
+        cursor = DBConn.execute("DELETE FROM Paper_Meta WHERE PID = ?", params)
+        if cursor.rowcount == 0: return False
+
+        # Step 3: Find Path of Paper Revision and delete them
+        cursor = DBConn.execute("SELECT Path FROM Paper_Revision WHERE PID = ?", params)
+        for row in cursor:
+            paperPath = row[0]
+            os.remove(paperPath)
+
+        # Step 4: Delete Paper Revision Record in DB
+        cursor = DBConn.execute("DELETE FROM Paper_Revision WHERE PID = ?", params)
+        if cursor.rowcount == 0: return False
+
+    return True
+
+
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
         folder_info: folder.FolderInfo,
         file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_data)
     start = time.time()
     try:
         res = await file.read()
-        fileUploadPath = config.UPLOAD_PATH + file.filename # Security
+        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + ".pdf"
         with open(fileUploadPath, "wb") as f:
             f.write(res)
         fid = list()
         fid.append(folder_info.FolderID)
         with sqlite3.connect(config.DB_PATH) as DBConn:
             DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
-            cursor = DBConn.execute("SELECT MAX(PID) FROM Paper")
+            cursor = DBConn.execute("SELECT MAX(PID) FROM Paper") # Thread unsafe
             pid = 0
             for r in cursor:
                 pid = r[0]
                 break
-            params = [pid, session_info[1].username, time.time(), fileUploadPath]
+            params = [pid, session_data[1].username, time.time(), fileUploadPath]
             DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, 0, ?)", params)
             return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'PID': pid}
     except Exception as e:
@@ -88,11 +103,7 @@ async def paperFolder(
         paper_folder_info: PaperMoveInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_data)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = list()
         params.append(paper_folder_info.new_folderID)
@@ -110,11 +121,7 @@ async def paperMetadata(
         paper_meta: PaperMetaInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_data)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = [paper_meta.Title, paper_meta.Authors, paper_meta.Conference, paper_meta.Abstract,
                   paper_meta.Keywords, paper_meta.Year, paper_meta.PaperID]
@@ -127,19 +134,14 @@ async def paperDelete(
         paper: PaperInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    pid = list()
-    pid.append(paper.PaperID)
-    with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("DELETE FROM Paper WHERE PID = ?", pid)
-        if cursor.rowcount == 1:
-            return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
-        else:
-            return {"status": 202, "message": "Fail to delete paper.", "pid": pid[0]}
+    await auth.checkLogin(session_data)
+    retValue = await PaperDelete_(paper.PaperID)
+    if retValue:
+        return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
+    else:
+        return {"status": 202, "message": "Fail to delete paper.", "pid": pid[0]}
+
+
 
 # 未完成：需要加入分词处理，完善数据库查询语句（真的不会写了我服了这啥啊），目前只用了最笨的办法写了title的查询
 # 这里我其实是想卷的，加入Query纠错，查询还有同义词替换，不知道可行度如何
@@ -154,57 +156,36 @@ async def paperQuery(
         query_type: str,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    pids = list()
-    flag = False
-    keywords_list = list()
-    query_t = types[query_type]
-    for ch in keywords.decode('utf-8'):
-        if u'\u4e00' <= ch <= u'\u9fff':
-            flag = True
-    if flag:
-        keywords_list = keywords.split(' ')
-    else:
-        keywords_list = keywords.split(',')
+    await auth.checkLogin(session_data)
+    keywordList = jieba.lcut(keywords)
+    keywordList2 = []
+    for kw in keywordList:
+        if kw.strip() != '':
+            keywordList2.append(kw.strip())
+
+    if len(keywordList2) == 0:
+        return {"status": 200, "message": "Paper queried successfully.", "pids": {}}
+
+    PIDS = []
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        if query_t == 1:
-            for k in keywords_list:
-                param = list()
-                param.append(k)
-                cursor = DBConn.execute("SELECT PID FROM Paper_Meta WHERE Title LIKE '%?%'", param)
-                for row in cursor:
-                    if row[0] not in pids:
-                        pids.append(row[0])
-        elif query_t == 2:
-            cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Authors LIKE '%?%'")
-        elif query_t == 3:
-            cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Conference LIKE '%?%'")
-        elif query_t == 4:
-            cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Abstract LIKE '%?%'")
-        elif query_t == 55:
-            cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Keywords LIKE '%?%'")
-        elif query_t == 6:
-            cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Year LIKE '%?%'")
+        SQL = "SELECT PID FROM Paper_Meta WHERE 0 "
+        for kw in keywordList2:
+            SQL += f"OR {query_type} LIKE '%{kw}%' "
+        cursor = DBConn.execute(SQL)
+        for row in cursor:
+            PIDS.append(row[0])
 
-        return {"status": 200, "message": "Paper queried successfully.", "pids": pids}
+    return {"status": 200, "message": "Paper queried successfully.", "pids": PIDS}
 
 
-# 未完成，目的为根据关键词对于所有文献进行排序
+# 未完成，目的为根据关键词对于所有文献进行排序 ??排序要干嘛
 @router.post("/paper/sort", tags=["users"])
 async def paperSort(
         keywords: str,
         types: str,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_data)
     pids = list()
     jieba.cut(keywords)
     with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -217,37 +198,29 @@ async def paperLock(
         paper: PaperInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = list()
     params.append(paper.PaperID)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT PID FROM PAPER WHERE PID = ? AND Lock = false", params)
+        cursor = DBConn.execute("SELECT PID FROM Paper WHERE PID = ? AND Lock = false", params)
         pid = 0
         for r in cursor:
             pid = r[0]
             break
         if pid == paper.PaperID:
-            DBConn.execute("Update Paper SET Lock = true WHERE PID = ?", params)
+            params = (session_info[1].username, paper.PaperID)
+            DBConn.execute("Update Paper SET Lock = true AND LockHolder = ? WHERE PID = ?", params)
             return {"status": 200, "message": "Paper locked successfully.", "lock_result": True}
         else:
             return {"status": 202, "message": "Fail to lock paper, it is locked already.", "lock_result": False}
 
 
-# 未完成，问题在于如果没有锁的持有者，无法判断unlock可否执行
 @router.post("/paper/unlock", tags=["users"])
 async def paperUnlock(
         paper: PaperInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = list()
     params.append(paper.PaperID)
     with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -257,8 +230,13 @@ async def paperUnlock(
             pid = r[0]
             break
         if pid == paper.PaperID:
-            DBConn.execute("Update Paper SET Lock = false WHERE PID = ?", params)
-            return {"status": 200, "message": "Paper unlocked successfully.", "unlock_result": True}
+            params = (paper.PaperID, session_info[1].username)
+            cursor = DBConn.execute("Update Paper SET Lock = false WHERE PID = ? AND LockHolder = ?", params)
+            if cursor.rowcount == 1:
+                return {"status": 200, "message": "Paper unlocked successfully.", "unlock_result": True}
+            else:
+                return {"status": 202, "message": "Fail to unlock paper, the lockholder aren't you.",
+                        "unlock_result": False}
         else:
             return {"status": 202, "message": "Fail to unlock paper, it is unlocked already.", "unlock_result": False}
 
@@ -269,23 +247,21 @@ async def paperDownload(
         paper: PaperDownloadInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = list()
     params.append(paper.PaperID)
     params.append(paper.Version)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT PID FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
+        cursor = DBConn.execute("SELECT PID, Path FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
         pid = 0
+        path = ""
         for r in cursor:
             pid = r[0]
+            path = r[1]
             break
         if pid == paper.PaperID:
             # 缺下载的代码，俺不太会，找了半天没找明白
-            return {"status": 200, "message": "Paper download successfully.", "adress": 0}
+            return {"status": 200, "message": "Paper download successfully.", "address": r[1]}
         else:
             return {"status": 202, "message": "Fail to download paper."}
 
@@ -297,11 +273,7 @@ async def paperUpload(
         file: UploadFile = File(...),
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     try:
         res = await file.read()
         fileUploadPath = config.UPLOAD_PATH + file.filename  # Security
@@ -333,11 +305,7 @@ async def paperList(
         paper: PaperDownloadInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     versionList = list()
     param = list()
     param.append(paper.PaperID)
@@ -352,11 +320,7 @@ async def paperList(
 async def paperAll(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     param = list()
     param.append(session_info[1].username)
     pids = list()

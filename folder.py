@@ -5,13 +5,9 @@ from pydantic import BaseModel
 from fastapi import Depends, Response, HTTPException, APIRouter, Body
 
 from fastapi_sessions import SessionCookie, SessionInfo
-from fastapi_sessions.backends import InMemoryBackend
 
 import sqlite3
-import config
-import hashlib
-import auth
-import uuid
+import config, auth, utils, paper
 
 router = APIRouter()
 
@@ -55,15 +51,11 @@ async def folderAdd(
         folder: FolderAddInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    params = [str(uuid.uuid4()), folder.folderName, session_info[1].username, folder.shared]
+    await auth.checkLogin(session_info)
+    params = [utils.getNewUUID(), folder.folderName, session_info[1].username, folder.shared]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         DBConn.execute("INSERT INTO Folder(FUUID, Name, Username, Shared) VALUES (?, ?, ?, ?)", params)
-        FID = DBConn.execute("SELECT MAX(FID) FROM Folder WHERE FUUID = ? AND Name = ? AND Username = ? AND Shared = ?", params)
+        FID = DBConn.execute("SELECT MAX(FID) FROM Folder WHERE FUUID = ? AND Name = ? AND Username = ? AND Shared = ?", params) # Thread Unsafe
         fid = list()
         for f in FID:
             fid.append(f[0])
@@ -71,17 +63,13 @@ async def folderAdd(
         return {"status": 200, "message": "Folder added successfully.", "fid": fid}
 
 
-# UNFINISHED，没有考虑到该文件夹如果被共享的处理方式
+# UNFINISHED，没有考虑到该文件夹如果被共享的处理方式 ??
 @router.post("/folder/delete", tags=["users"])
 async def folderDelete(
         folder: FolderDeleteInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = [folder.FolderID, session_info[1].username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Username = ?", params)
@@ -92,10 +80,8 @@ async def folderDelete(
             param.append(folder.FolderID)
             papers = DBConn.execute("SELECT PID FROM Paper WHERE FID = ?", param)
             for row in papers:
-                params = list()
-                params.append(folder.FolderID)
-                params.append(row[0])
-                DBConn.execute("DELETE FROM Paper WHERE FID = ? AND PID = ?", params)
+                PID = row[0]
+                await paper.PaperDelete_(PID)
             DBConn.execute("DELETE FROM Folder WHERE FID = ?", param)
             return {"status": 200, "message": "Folder deleted successfully.", "delete_result": True}
 
@@ -104,12 +90,8 @@ async def folderDelete(
 async def folderList(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+    await auth.checkLogin(session_info)
     folder_list = list()
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
     param = list()
     param.append(session_info[1].username)
     with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -142,11 +124,7 @@ async def folderRename(
         folder: FolderRenameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = [folder.newFolderName, folder.oldFolderName, folder.FolderID, session_info[1].username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         DBConn.execute("UPDATE Folder SET Name = ? WHERE Name = ? AND FID = ? AND Username = ?", params)
@@ -158,11 +136,7 @@ async def folderShare(
         folder: FolderShareInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     params = [folder.FolderID, session_info[1].username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FUUID FROM Folder WHERE FID = ? AND Username = ?", params)
@@ -178,19 +152,11 @@ async def folderUnshare(
         folder: FolderShareInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    params = [folder.FolderID, session_info[1].username]
+    await auth.checkLogin(session_info)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT FUUID FROM Folder WHERE FID = ? AND Username = ?", params)
+        params = [folder.FolderID, session_info[1].username]
         DBConn.execute("UPDATE Folder SET Shared = FALSE WHERE FID = ? AND Username = ?", params)
-        for row in cursor:
-            FUUID = row[0]
-            break
-        return {"status": 200, "message": "Folder unshared successfully.", "FUUID": FUUID}
+        return {"status": 200, "message": "Folder unshared successfully."}
 
 
 @router.post("/folder/join", tags=["users"])
@@ -198,11 +164,7 @@ async def folderJoin(
         folder: FolderJoinInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     param = list()
     param.append(folder.FUUID)
     fid = 0
@@ -213,28 +175,26 @@ async def folderJoin(
             flag = row[1]
             break
         if not flag:
-            return {"status": 202, "message": "Failed to join folder, this folder is not shared.", "FUUID": folder.FUUID}
+            return {"status": 202, "message": "Failed to join folder, this folder is not shared or not exist."}
         else:
             params = list()
             params.append(session_info[1].username)
             params.append(fid)
-            print(params)
             cursor = DBConn.execute("SELECT Username FROM Folder WHERE Username = ? AND FID = ?", params)
-
             for row in cursor:
                 if row[0] == session_info[1].username:
-                    return {"status": 202, "message": "Failed to join folder, you are the owner of this folder.",
-                        "FUUID": folder.FUUID}
+                    return {"status": 202, "message": "Failed to join folder, you are the owner of this folder."}
+
             params = list()
             params.append(session_info[1].userID)
             params.append(fid)
             cursor2 = DBConn.execute("SELECT UID FROM User_Folder WHERE UID = ? AND FID = ?", params)
             for row in cursor2:
                 if row[0] == session_info[1].userID:
-                    return {"status": 201, "message": "Failed to join folder, you are already int the list.",
-                            "FUUID": folder.FUUID}
+                    return {"status": 201, "message": "Failed to join folder, you are already in the list."}
+
             DBConn.execute("INSERT INTO User_Folder(UID, FID) VALUES (?, ?)", params)
-            return {"status": 200, "message": "Folder joined successfully.", "FUUID": folder.FUUID}
+            return {"status": 200, "message": "Folder joined successfully."}
 
 
 @router.post("/folder/memberlist", tags=["users"])
@@ -242,15 +202,11 @@ async def folderMemberlist(
         folder: FolderShareInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+    await auth.checkLogin(session_info)
     params = list()
     params.append(session_info[1].username)
     params.append(folder.FolderID)
     member_list = list()
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE Username = ? AND FID = ?", params)
         fid = 0
@@ -264,7 +220,7 @@ async def folderMemberlist(
         else:
             param = list()
             param.append(fid)
-            members = DBConn.execute("SELECT UID FROM User_Folder WHERE FID = ?", param)
+            members = DBConn.execute("SELECT Username FROM User_Folder, User WHERE User_Folder.UID =  User.UID AND FID = ?", param)
             for member in members:
                 member_list.append(member[0])
             if shared is True:
@@ -280,14 +236,10 @@ async def folderDeleteMember(
         member: FolderSharedMemberInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+    await auth.checkLogin(session_info)
     params = list()
     params.append(session_info[1].username)
     params.append(folder.FolderID)
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ? AND FID = ?", params)
         if cursor.rowcount != 1:

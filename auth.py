@@ -7,10 +7,8 @@ from fastapi import Depends, Response, HTTPException, APIRouter, Body
 from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
 
-import sqlite3
-import config
-import hashlib
-import uuid
+import sqlite3, uuid
+import config, utils
 
 router = APIRouter()
 
@@ -39,6 +37,15 @@ curSession = SessionCookie(
     auto_error=False
 )
 
+async def checkLogin(
+        session_data: Optional[SessionInfo] = Depends(curSession)
+):
+    if session_data is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+
 
 @router.post("/users/login", tags=["users"])
 async def userLogin(
@@ -52,7 +59,7 @@ async def userLogin(
 
     # Authentication: Password is MD5 Digested
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = (user.username, hashlib.md5(user.password.encode(encoding='UTF-8')).hexdigest())
+        params = (user.username, utils.MD5(user.password))
         cursor = DBConn.execute("SELECT UID, Username, Role FROM User WHERE Username = ? and Password = ?", params)
         userFinded = False
         Role = ""
@@ -65,7 +72,7 @@ async def userLogin(
             Role = row[2]
             break
     if userFinded:
-        userSessionData = SessionData(userID = UID, username=Username, role=Role)
+        userSessionData = SessionData(userID=UID, username=Username, role=Role)
         await curSession.create_session(userSessionData, response, old_session)
         return {"status": 200, "message": "Logged in successfully.", "user": userSessionData}
     else:
@@ -77,11 +84,7 @@ async def userLogout(
         response: Response,
         session_info: Optional[SessionInfo] = Depends(curSession)
 ):
-    if not session_info:
-        raise HTTPException(
-            status_code=403,
-            detail="Not authenticated"
-        )
+    await checkLogin(session_info)
     await curSession.end_session(session_info[0], response)
     return {"status": 200, "message": "You have logged out now.", "user": session_info}
 
@@ -90,11 +93,7 @@ async def userLogout(
 async def userStatus(
         session_data: Optional[SessionInfo] = Depends(curSession)
 ):
-    if session_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await checkLogin(session_data)
     return {"status": 200, "message": "You are logged in.", "user": session_data}
 
 
@@ -115,7 +114,7 @@ async def userRegister(
             userFinded = True
             break
 
-        params = (user.username, hashlib.md5(user.password.encode(encoding='UTF-8')).hexdigest())
+        params = (user.username, utils.MD5(user.password))
         if userFinded:
             return {"status": 202, "message": "User name already exists."}
         else:
@@ -137,24 +136,18 @@ async def userRegister(
 @router.post("/users/modifypassword", tags=["users"])
 async def userModifyPassword(
     user: ModifyPasswordUserInfo,
-    response: Response,
     session_info: Optional[SessionInfo] = Depends(curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await checkLogin(session_info)
     # Authentication: Password is MD5 Digested
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = (hashlib.md5(user.newPassword.encode(encoding='UTF-8')).hexdigest(), session_info[1].username,
-                                    hashlib.md5(user.oldPassword.encode(encoding='UTF-8')).hexdigest())
+        params = (utils.MD5(user.newPassword), session_info[1].username, utils.MD5(user.oldPassword))
         if params[0] == params[2]:
-            return {"status": 202, "message": "Password modified unsuccessfully, the old password is identical to the new password."}
+            return {"status": 202, "message": "Password modification failed, the old password is identical to the new password."}
 
         cursor = DBConn.execute("UPDATE User SET Password = ? WHERE Username = ? AND Password = ?", params)
         if cursor.rowcount == 1:
             return {"status": 200, "message": "Password modified successfully."}
         else:
-            return {"status": 202, "message": "Password modified unsuccessfully, the old password is wrong."}
+            return {"status": 202, "message": "Password modification failed, the old password is wrong."}
 
