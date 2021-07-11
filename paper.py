@@ -19,7 +19,14 @@ import jieba
 router = APIRouter()
 types = {"Title": 1, "Authors": 2, "Conference": 3, "Abstract": 4, "Keywords": 5, "Year": 6}
 
+
 class PaperInfo(BaseModel):
+    PaperID: int
+
+
+class PaperMoveInfo(BaseModel):
+    old_folderID: int
+    new_folderID: int
     PaperID: int
 
 
@@ -78,8 +85,7 @@ async def paperImport(
 
 @router.post("/paper/folder", tags=["users"])
 async def paperFolder(
-        folder_info: folder.FolderInfo,
-        paper_info: PaperInfo,
+        paper_folder_info: PaperMoveInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     if session_data is None:
@@ -88,14 +94,15 @@ async def paperFolder(
             detail="Not Authenticated"
         )
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        fid = list()
-        fid.append(folder_info.FolderID)
-        DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
-        pid = list()
-        pid.append(paper_info.PaperID)
-        DBConn.execute("INSERT INTO Paper_Meta(PID) VALUES (?)", pid)
-        return {"status": 200, "message": "Paper imported successfully.", "pid": pid}
-
+        params = list()
+        params.append(paper_folder_info.new_folderID)
+        params.append(paper_folder_info.PaperID)
+        params.append(paper_folder_info.old_folderID)
+        cursor = DBConn.execute("UPDATE Paper SET FID = ? WHERE PID = ? AND FID = ?", params)
+        if cursor.rowcount == 1:
+            return {"status": 200, "message": "Paper moved successfully.", "flag": True}
+        else:
+            return {"status": 202, "message": "Fail to move paper.", "flag": False}
 
 # 少自动解析
 @router.post("/paper/metadata", tags=["users"])
@@ -128,9 +135,11 @@ async def paperDelete(
     pid = list()
     pid.append(paper.PaperID)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        DBConn.execute("DELETE FROM Paper WHERE PID = ?", pid)
-        return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
-
+        cursor = DBConn.execute("DELETE FROM Paper WHERE PID = ?", pid)
+        if cursor.rowcount == 1:
+            return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
+        else:
+            return {"status": 202, "message": "Fail to delete paper.", "pid": pid[0]}
 
 # 未完成：需要加入分词处理，完善数据库查询语句（真的不会写了我服了这啥啊），目前只用了最笨的办法写了title的查询
 # 这里我其实是想卷的，加入Query纠错，查询还有同义词替换，不知道可行度如何
@@ -338,3 +347,25 @@ async def paperList(
             versionList.append({"editUser": row[0], "editTime": row[1], "version": row[2]})
         return {"status": 200, "message": "Paper listed successfully.", "version_list": versionList}
 
+
+@router.post("/paper/all", tags=["users"])
+async def paperAll(
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    param = list()
+    param.append(session_info[1].username)
+    pids = list()
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", param)
+        for row in cursor:
+            fid = list()
+            fid.append(row[0])
+            cur = DBConn.execute("SELECT PID FROM Paper WHERE FID = ?", fid)
+            for r in cur:
+                pids.append(r[0])
+        return {"status": 200, "message": "Paper all successfully.", "pids": pids}

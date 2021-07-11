@@ -120,7 +120,7 @@ async def userRegister(
             return {"status": 202, "message": "User name already exists."}
         else:
             DBConn.execute("INSERT INTO User(Username, Password, Role) VALUES (?, ?, 'user')", params)
-            DBConn.execute("INSERT INTO Folder(FUUID, Name, Username, Shared) VALUES (?, '我的文件夹', ?, FALSE)", params_folder_info)
+            DBConn.execute("INSERT INTO Folder(FUUID, Name, Username, Shared) VALUES (?, '默认文件夹', ?, FALSE)", params_folder_info)
             UID = DBConn.execute("SELECT UID FROM User WHERE Username = ?", params_name)
             FID = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", params_name)
             params_uid_fid = []

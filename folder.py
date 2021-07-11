@@ -84,7 +84,7 @@ async def folderDelete(
         )
     params = [folder.FolderID, session_info[1].username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND UID = ?", params)
+        cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Username = ?", params)
         if cursor.rowcount != 1:
             return {"status": 202, "message": "Failed to delete folder.", "delete_result": False}
         else:
