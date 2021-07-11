@@ -17,9 +17,17 @@ import time
 router = APIRouter()
 
 
+class UserNameInfo(BaseModel):
+    username: str
+
+
+class FolderIDInfo(BaseModel):
+    FolderID: int
+
+
 @router.post("/admin/folder/list", tags=["users"])
-async def folderUnshare(
-        user: auth.UserInfo,
+async def folderList(
+        user: UserNameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     folder_list = list()
@@ -33,8 +41,7 @@ async def folderUnshare(
             status_code=403,
             detail="Not Authenticated, you are not administrator."
         )
-    param = list()
-    param.append(user.username)
+    param = [user.username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Name, FID FROM Folder WHERE Username = ?", param)
         for row in cursor:
@@ -63,3 +70,27 @@ async def folderUnshare(
                 continue
         return {"status": 200, "message": "Folder listed successfully.", "folder_list": folder_list}
 
+
+@router.post("/admin/folder/queryshared", tags=["users"])
+async def folderQueryshared(
+        folder: FolderIDInfo,
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    if role == 'user':
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated, you are not administrator."
+        )
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        param = [folder.FolderID]
+        cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE FID = ?", param)
+        for row in cursor:
+            if row[0] == FolderIDInfo.FolderID:
+                return {"status": 200, "message": "Folder query shared successfully.", "Shared": row[1]}
+            else:
+                return {"status": 202, "message": "Fail to folder query shared."}

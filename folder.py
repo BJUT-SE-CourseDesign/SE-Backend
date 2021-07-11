@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 from typing import Tuple, Optional, Any
-
 from pydantic import BaseModel
 from fastapi import Depends, Response, HTTPException, APIRouter, Body
 
@@ -135,6 +134,25 @@ async def folderList(
             else:
                 continue
         return {"status": 200, "message": "Folder listed successfully.", "folder_list": folder_list}
+
+
+@router.post("/folder/listpaper", tags=["users"])
+async def folderListpaper(
+        folder: FolderDeleteInfo,
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    param = [folder.FolderID]
+    pids = list()
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT PID FROM Paper WHERE FID = ?", param)
+        for row in cursor:
+            pids.append(row[0])
+        return {"status": 200, "message": "Listed paper in folder.", "pids": pids}
 
 
 @router.post("/folder/rename", tags=["users"])
