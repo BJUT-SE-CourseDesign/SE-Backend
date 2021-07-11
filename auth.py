@@ -16,6 +16,7 @@ router = APIRouter()
 
 
 class SessionData(BaseModel):
+    userID: int
     username: str
     role: str
 
@@ -52,16 +53,19 @@ async def userLogin(
     # Authentication: Password is MD5 Digested
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = (user.username, hashlib.md5(user.password.encode(encoding='UTF-8')).hexdigest())
-        cursor = DBConn.execute("SELECT Username, Role FROM User WHERE Username = ? and Password = ?", params)
+        cursor = DBConn.execute("SELECT UID, Username, Role FROM User WHERE Username = ? and Password = ?", params)
         userFinded = False
-        role = ""
+        Role = ""
+        UID = 0
+        Username = ""
         for row in cursor:
             userFinded = True
-            role = row[1]
+            UID = row[0]
+            Username = row[1]
+            Role = row[2]
             break
-
     if userFinded:
-        userSessionData = SessionData(username=user.username, role=role)
+        userSessionData = SessionData(userID = UID, username=Username, role=Role)
         await curSession.create_session(userSessionData, response, old_session)
         return {"status": 200, "message": "Logged in successfully.", "user": userSessionData}
     else:
@@ -116,7 +120,7 @@ async def userRegister(
             return {"status": 202, "message": "User name already exists."}
         else:
             DBConn.execute("INSERT INTO User(Username, Password, Role) VALUES (?, ?, 'user')", params)
-            DBConn.execute("INSERT INTO Folder(FUUID, Name, Username, Shared) VALUES (?, '我的文件夹', ?, FALSE)", params_folder_info)
+            DBConn.execute("INSERT INTO Folder(FUUID, Name, Username, Shared) VALUES (?, '默认文件夹', ?, FALSE)", params_folder_info)
             UID = DBConn.execute("SELECT UID FROM User WHERE Username = ?", params_name)
             FID = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", params_name)
             params_uid_fid = []
@@ -153,3 +157,4 @@ async def userModifyPassword(
             return {"status": 200, "message": "Password modified successfully."}
         else:
             return {"status": 202, "message": "Password modified unsuccessfully, the old password is wrong."}
+
