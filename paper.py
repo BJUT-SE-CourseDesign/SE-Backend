@@ -115,7 +115,7 @@ async def paperFolder(
         else:
             return {"status": 202, "message": "Fail to move paper.", "flag": False}
 
-# 少自动解析
+# 自动解析，由前端请求另外一个接口，与当前程序无关
 @router.post("/paper/metadata", tags=["users"])
 async def paperMetadata(
         paper_meta: PaperMetaInfo,
@@ -137,9 +137,9 @@ async def paperDelete(
     await auth.checkLogin(session_data)
     retValue = await PaperDelete_(paper.PaperID)
     if retValue:
-        return {"status": 200, "message": "Paper deleted successfully.", "pid": pid[0]}
+        return {"status": 200, "message": "Paper deleted successfully."}
     else:
-        return {"status": 202, "message": "Fail to delete paper.", "pid": pid[0]}
+        return {"status": 202, "message": "Fail to delete paper."}
 
 
 
@@ -241,7 +241,6 @@ async def paperUnlock(
             return {"status": 202, "message": "Fail to unlock paper, it is unlocked already.", "unlock_result": False}
 
 
-# 未完成
 @router.post("/paper/download", tags=["users"])
 async def paperDownload(
         paper: PaperDownloadInfo,
@@ -260,8 +259,7 @@ async def paperDownload(
             path = r[1]
             break
         if pid == paper.PaperID:
-            # 缺下载的代码，俺不太会，找了半天没找明白
-            return {"status": 200, "message": "Paper download successfully.", "address": r[1]}
+            return {"status": 200, "message": "Paper download successfully.", "address": path}
         else:
             return {"status": 202, "message": "Fail to download paper."}
 
@@ -276,7 +274,7 @@ async def paperUpload(
     await auth.checkLogin(session_info)
     try:
         res = await file.read()
-        fileUploadPath = config.UPLOAD_PATH + file.filename  # Security
+        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + ".pdf"  # Security
         with open(fileUploadPath, "wb") as f:
             f.write(res)
 

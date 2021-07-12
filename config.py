@@ -1,3 +1,3 @@
 DB_PATH = 'SQL/SE.db'
-UPLOAD_PATH = 'Upload/'
+UPLOAD_PATH = 'upload/'
 SESSION_SECRET_KEY = '&gh3dFR3E(*%6'
