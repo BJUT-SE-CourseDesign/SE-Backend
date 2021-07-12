@@ -30,17 +30,9 @@ async def folderList(
         user: UserNameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+    await auth.checkLogin(session_info)
+    await auth.needAdminRole(session_info)
     folder_list = list()
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
     param = [user.username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Name, FID FROM Folder WHERE Username = ?", param)
@@ -76,16 +68,8 @@ async def folderQueryshared(
         folder: FolderIDInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
+    await auth.checkLogin(session_info)
+    await auth.needAdminRole(session_info)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         param = [folder.FolderID]
         cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE FID = ?", param)

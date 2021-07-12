@@ -46,6 +46,15 @@ async def checkLogin(
             detail="Not Authenticated"
         )
 
+async def needAdminRole(
+        session_data: Optional[SessionInfo] = Depends(curSession)
+):
+    if session_data[1].role == 'user':
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated, you are not administrator."
+        )
+
 
 @router.post("/users/login", tags=["users"])
 async def userLogin(

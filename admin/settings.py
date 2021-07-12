@@ -31,21 +31,13 @@ async def settingsQuery(
         key_info: KeyInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+    await auth.checkLogin(session_info)
+    await auth.needAdminRole(session_info)
     settings_list = dict()
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
     with sqlite3.connect(config.DB_PATH) as DBConn:
         value = 0
         param = [key_info.Key]
-        cursor = DBConn.execute("SELECT Name, Value FROM Setting WHERE Name = ?", param)
+        cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
         for row in cursor:
             value = row[0]
         return {"status": 200, "message": "Settings queried successfully.", "value": value}
@@ -56,16 +48,8 @@ async def settingsModify(
         setting_info: SettingInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
+    await auth.checkLogin(session_info)
+    await auth.needAdminRole(session_info)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = [setting_info.Value, setting_info.Key]
         cursor = DBConn.execute("UPDATE Setting SET Value = ? WHERE Name = ?", params)
@@ -79,19 +63,11 @@ async def settingsModify(
 async def settingsList(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
+    await auth.checkLogin(session_info)
+    await auth.needAdminRole(session_info)
     key_list = list()
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Name FROM Setting")
         for row in cursor:
             key_list.append(row[0])
-        return {"status": 200, "message": "Settings listed successfully.", keyList: key_list}
+        return {"status": 200, "message": "Settings listed successfully.", "keyList": key_list}
