@@ -123,11 +123,7 @@ async def folderListpaper(
         folder: FolderDeleteInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
+    await auth.checkLogin(session_info)
     param = [folder.FolderID]
     pids = list()
     with sqlite3.connect(config.DB_PATH) as DBConn:
