@@ -152,7 +152,7 @@ async def userModifyPassword(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = (utils.MD5(user.newPassword), session_info[1].username, utils.MD5(user.oldPassword))
         if params[0] == params[2]:
-            return {"status": 202, "message": "Password modification failed, the old password is identical to the new password."}
+            return {"status": 201, "message": "Password modification failed, the old password is identical to the new password."}
 
         cursor = DBConn.execute("UPDATE User SET Password = ? WHERE Username = ? AND Password = ?", params)
         if cursor.rowcount == 1:

@@ -42,6 +42,7 @@ class PaperDownloadInfo(BaseModel):
 class PaperUploadInfo(BaseModel):
     PaperID: int
 
+
 async def PaperDelete_(
         PID: int
 ) -> bool:
@@ -114,6 +115,7 @@ async def paperFolder(
         else:
             return {"status": 202, "message": "Fail to move paper.", "flag": False}
 
+
 # 自动解析，由前端请求另外一个接口，与当前程序无关
 @router.post("/paper/metadata", tags=["users"])
 async def paperMetadata(
@@ -141,14 +143,6 @@ async def paperDelete(
         return {"status": 202, "message": "Fail to delete paper."}
 
 
-
-# 未完成：需要加入分词处理，完善数据库查询语句（真的不会写了我服了这啥啊），目前只用了最笨的办法写了title的查询
-# 这里我其实是想卷的，加入Query纠错，查询还有同义词替换，不知道可行度如何
-# 4. 文献查询：在窗口右上部的文本框里填写搜索关键字；在文献标题、作者、关键字中进行搜索；查询的内容在窗口中部展示
-# Path：/paper/query
-# **前置条件：登录成功
-# **参数：搜索关键字集合”keywords”[]、搜索分类集合”types” [“title”, ”author”, ”keyword”]
-# **返回：匹配成功文献PID
 @router.post("/paper/query", tags=["users"])
 async def paperQuery(
         keywords: str,
