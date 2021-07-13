@@ -3,8 +3,9 @@ from fastapi import FastAPI
 from fastapi_sessions import SessionInfo
 from fastapi import Depends, Response, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
-import auth
+import auth, config
 import paper
 import folder
 
@@ -14,19 +15,18 @@ from admin import user
 
 app = FastAPI()
 
-origins = [
-    "http://127.0.0.1",
-    "http://127.0.0.1:8080",
-    "http://localhost",
-    "http://localhost:8080",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=['*'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=config.SESSION_SECRET_KEY,
+    same_site="None",
+    https_only=True
 )
 
 app.include_router(auth.router)

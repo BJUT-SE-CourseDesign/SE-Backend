@@ -67,6 +67,23 @@ async def PaperDelete_(
 
     return True
 
+async def PaperRevisionDelete_(
+        PID: int,
+        Version: int
+) -> bool:
+    params = (PID, Version)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        # Step 1: Find Path of Paper Revision and delete them
+        cursor = DBConn.execute("SELECT Path FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
+        for row in cursor:
+            paperPath = row[0]
+            os.remove(paperPath)
+
+        # Step 2: Delete Paper Revision Record in DB
+        cursor = DBConn.execute("DELETE FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
+        if cursor.rowcount == 0: return False
+
+    return True
 
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
@@ -77,8 +94,19 @@ async def paperImport(
     await auth.checkLogin(session_data)
     start = time.time()
     try:
+        FileSize = 0
+        with sqlite3.connect(config.DB_PATH) as DBConn:
+            cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileSize'")
+            for row in cursor:
+                FileSize = row[0]
+                break
         res = await file.read()
-        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + ".pdf"
+        if len(res) > FileSize:
+            return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
+        fileSuffix = file.filename.split('.')[-1]
+        if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
+            return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
+        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
         with open(fileUploadPath, "wb") as f:
             f.write(res)
         fid = list()
@@ -259,8 +287,19 @@ async def paperUpload(
 ):
     await auth.checkLogin(session_info)
     try:
+        FileSize = 0
+        with sqlite3.connect(config.DB_PATH) as DBConn:
+            cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileSize'")
+            for row in cursor:
+                FileSize = row[0]
+                break
         res = await file.read()
-        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + ".pdf"  # Security
+        if len(res) > FileSize:
+            return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
+        fileSuffix = file.filename.split('.')[-1]
+        if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
+            return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
+        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
         with open(fileUploadPath, "wb") as f:
             f.write(res)
 
@@ -279,7 +318,7 @@ async def paperUpload(
             params.append(paper.PaperID)
             DBConn.execute("INSERT INTO Paper_Revision SET Edit_User = ?, Edit_Time = ?, Version = ?, Path = ? WHERE PID = ?", params)
             return {"status": 200, "message": "Paper upload successfully.",
-                    "info": {"PID": paper.PaperID, "editUser": param[0], "editTime": param[1], "version": param[2]}}
+                    "info": {"PID": paper.PaperID, "editUser": params[0], "editTime": params[1], "version": params[2]}}
     except Exception as e:
         return {"status": 400, "message": str(e), "PID": paper.PaperID}
 
