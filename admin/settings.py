@@ -17,20 +17,17 @@ import time
 router = APIRouter()
 
 
-class KeyInfo:
-    Key: str
-
-
-class SettingInfo:
+class SettingInfo(BaseModel):
     Key: str
     Value: int
 
 
 @router.post("/admin/settings/query", tags=["users"])
-async def settingsQuery(
-        key_info: KeyInfo,
+async def adminSettingsQuery(
+        Key: str,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
+<<<<<<< Updated upstream
     await auth.checkLogin(session_info)
     await auth.needAdminRole(session_info)
     settings_list = dict()
@@ -38,13 +35,29 @@ async def settingsQuery(
         value = 0
         param = [key_info.Key]
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
+=======
+    if session_info is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated"
+        )
+    if role == 'user':
+        raise HTTPException(
+            status_code=403,
+            detail="Not Authenticated, you are not administrator."
+        )
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        value = 0
+        param = [Key]
+        cursor = DBConn.execute("SELECT Name, Value FROM Setting WHERE Name = ?", param)
+>>>>>>> Stashed changes
         for row in cursor:
             value = row[0]
         return {"status": 200, "message": "Settings queried successfully.", "value": value}
 
 
 @router.post("/admin/settings/modify", tags=["users"])
-async def settingsModify(
+async def adminSettingsModify(
         setting_info: SettingInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -60,7 +73,7 @@ async def settingsModify(
 
 
 @router.post("/admin/settings/list", tags=["users"])
-async def settingsList(
+async def adminSettingsList(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)

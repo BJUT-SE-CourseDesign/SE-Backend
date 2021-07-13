@@ -8,6 +8,10 @@ import auth
 import paper
 import folder
 
+from admin import settings
+from admin import folder as fd
+from admin import user
+
 app = FastAPI()
 
 origins = [
@@ -26,6 +30,9 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(paper.router)
 app.include_router(folder.router)
+app.include_router(settings.router)
+app.include_router(fd.router)
+app.include_router(user.router)
 
 
 @app.get('/')

@@ -26,7 +26,7 @@ class FolderIDInfo(BaseModel):
 
 
 @router.post("/admin/folder/list", tags=["users"])
-async def folderList(
+async def adminFolderList(
         user: UserNameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -64,7 +64,7 @@ async def folderList(
 
 
 @router.post("/admin/folder/queryshared", tags=["users"])
-async def folderQueryshared(
+async def adminFolderQueryshared(
         folder: FolderIDInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):

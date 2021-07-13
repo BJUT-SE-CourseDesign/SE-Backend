@@ -13,12 +13,12 @@ import config, utils, auth
 router = APIRouter()
 
 
-class AdminModifyUserPasswordInfo:
+class AdminModifyUserPasswordInfo(BaseModel):
     username: str
     newPassword: str
 
 
-class AdminUserNameInfo:
+class AdminUserNameInfo(BaseModel):
     username: str
 
 
