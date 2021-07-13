@@ -62,7 +62,6 @@ async def folderAdd(
         return {"status": 200, "message": "Folder added successfully.", "fid": fid}
 
 
-# UNFINISHED，没有考虑到该文件夹如果被共享的处理方式 ??
 @router.post("/folder/delete", tags=["users"])
 async def folderDelete(
         folder: FolderDeleteInfo,
@@ -70,7 +69,15 @@ async def folderDelete(
 ):
     await auth.checkLogin(session_info)
     params = [folder.FolderID, session_info[1].username]
+    param = [session_info[1].username]
+    paper_num = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", param)
+        for row in cursor:
+            paper_num = paper_num + 1
+        if paper_num <= 1:
+            return {"status": 201, "message": "Failed to delete folder, only one left.", "delete_result": False}
+        
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Username = ?", params)
         if cursor.rowcount != 1:
             return {"status": 202, "message": "Failed to delete folder.", "delete_result": False}
