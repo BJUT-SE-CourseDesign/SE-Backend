@@ -12,7 +12,6 @@ import sqlite3, time, jieba, os
 import config, auth, folder, utils
 
 router = APIRouter()
-types = {"Title": 1, "Authors": 2, "Conference": 3, "Abstract": 4, "Keywords": 5, "Year": 6}
 
 
 class PaperInfo(BaseModel):
@@ -176,21 +175,6 @@ async def paperQuery(
             PIDS.append(row[0])
 
     return {"status": 200, "message": "Paper queried successfully.", "pids": PIDS}
-
-
-# 未完成，目的为根据关键词对于所有文献进行排序 ??排序要干嘛
-@router.post("/paper/sort", tags=["users"])
-async def paperSort(
-        keywords: str,
-        types: str,
-        session_data: Optional[SessionInfo] = Depends(auth.curSession)
-):
-    await auth.checkLogin(session_data)
-    pids = list()
-    jieba.cut(keywords)
-    with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT * FROM Paper_Meta WHERE Title LIKE '%KeyWord%' or Authors LIKE '%KeyWord%' or Year LIKE '%KeyWord%' or ...")
-        return {"status": 200, "message": "Paper sorted successfully.", "pids": pids}
 
 
 @router.post("/paper/lock", tags=["users"])
