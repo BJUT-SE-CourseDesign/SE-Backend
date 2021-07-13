@@ -34,7 +34,8 @@ curSession = SessionCookie(
     secret_key=config.SESSION_SECRET_KEY,
     backend=InMemoryBackend(),
     data_model=SessionData,
-    auto_error=False
+    auto_error=False,
+    samesite='None'
 )
 
 async def checkLogin(
