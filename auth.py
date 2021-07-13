@@ -35,6 +35,7 @@ curSession = SessionCookie(
     backend=InMemoryBackend(),
     data_model=SessionData,
     auto_error=False,
+    secure=True,
     samesite='None'
 )
 
