@@ -78,9 +78,13 @@ async def folderDelete(
         if paper_num <= 1:
             return {"status": 201, "message": "Failed to delete folder, only one left.", "delete_result": False}
 
+        flag = False
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Username = ?", params)
-        if cursor.rowcount != 1:
-            return {"status": 202, "message": "Failed to delete folder.", "delete_result": False}
+        for row in cursor:
+            flag = True
+            break
+        if flag == False:
+            return {"status": 202, "message": "Failed to delete folder, this folder does not belong to you.", "delete_result": False}
         else:
             param = list()
             param.append(folder.FolderID)
