@@ -165,7 +165,7 @@ async def userModifyPassword(
             return {"status": 202, "message": "Password modification failed, the old password is wrong."}
 
 
-@router.post("/users/isadmin", tags=["users"])
+@router.get("/users/isadmin", tags=["users"])
 async def userIsAdmin(
     session_info: Optional[SessionInfo] = Depends(curSession)
 ):

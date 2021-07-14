@@ -267,7 +267,11 @@ async def folderDeleteMember(
     params.append(folder.FolderID)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ? AND FID = ?", params)
-        if cursor.rowcount != 1:
+        flag = False
+        for row in cursor:
+            flag = True
+            break
+        if flag == False:
             return {"status": 202, "message": "Failed to delete member from list, not the owner.", "deleteResult": False}
         else:
             fid = 0
