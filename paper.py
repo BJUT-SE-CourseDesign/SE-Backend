@@ -316,7 +316,7 @@ async def paperDownload(
             path = r[1]
             break
         if pid == paper.PaperID:
-            return {"status": 200, "message": "Paper download successfully.", "address": path}
+            return {"status": 200, "message": "Paper download successfully.", "address": config.SITE_PATH + path}
         else:
             return {"status": 202, "message": "Fail to download paper."}
 

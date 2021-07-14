@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import auth, config
 import paper
 import folder
+from fastapi.staticfiles import StaticFiles
 
 from admin import settings
 from admin import folder as fd
@@ -39,6 +40,7 @@ app.include_router(settings.router)
 app.include_router(fd.router)
 app.include_router(user.router)
 
+app.mount(path='/upload/', app=StaticFiles(directory='./upload'))
 
 @app.get('/')
 def index(
