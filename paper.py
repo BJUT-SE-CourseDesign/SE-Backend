@@ -114,7 +114,7 @@ async def PaperUpload_(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'FileSize'")
         for row in cursor:
-            FileSize = int(row[0])
+            FileSize = int(row[0]) * 1048576
             break
     res = await file.read()
     if len(res) > FileSize:
