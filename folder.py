@@ -28,7 +28,6 @@ class FolderDeleteInfo(BaseModel):
 
 class FolderRenameInfo(BaseModel):
     FolderID: int
-    oldFolderName: str
     newFolderName: str
 
 
@@ -150,10 +149,13 @@ async def folderRename(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
-    params = [folder.newFolderName, folder.oldFolderName, folder.FolderID, session_info[1].username]
+    params = [folder.newFolderName, folder.FolderID, session_info[1].username]
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        DBConn.execute("UPDATE Folder SET Name = ? WHERE Name = ? AND FID = ? AND Username = ?", params)
-        return {"status": 200, "message": "Folder renamed successfully.", "folder_info": {params[1]: params[0]}}
+        cursor = DBConn.execute("UPDATE Folder SET Name = ? WHERE FID = ? AND Username = ?", params)
+        if cursor.rowcount == 1:
+            return {"status": 200, "message": "Folder renamed successfully.", "FID": folder.FolderID}
+        else:
+            return {"status": 202, "message": "Fail to rename folder.", "FID": folder.FolderID}
 
 
 @router.post("/folder/share", tags=["users"])
