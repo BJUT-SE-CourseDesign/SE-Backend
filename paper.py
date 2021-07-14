@@ -8,7 +8,7 @@ from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
 from starlette.responses import FileResponse
 
-import sqlite3, time, jieba, os
+import sqlite3, time, jieba, os, traceback
 import config, auth, folder, utils
 
 router = APIRouter()
@@ -156,6 +156,7 @@ async def paperImport(
             DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, 0, ?)", params)
             return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'PID': pid}
     except Exception as e:
+        traceback.print_exc()
         return {"status": 400, "message": str(e), 'time': time.time() - start, 'filename': file.filename}
 
 
