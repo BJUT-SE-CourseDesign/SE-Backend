@@ -114,6 +114,16 @@ async def userStatus(
 async def userRegister(
         user: UserInfo
 ):
+    regEn = 0
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'RegisterEnabled'")
+        for row in cursor:
+            regEn = row[0]
+            break
+    if regEn == 0:
+        return {"status": 403, "message": "Registration Closed."}
+
+
     # Authentication: Password is MD5 Digested
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params_name = list()
