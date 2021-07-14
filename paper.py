@@ -98,7 +98,7 @@ async def PaperUpload_(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'SingleUserFileCountLimit'")
         for row in cursor:
-            SingleUserFileCountLimit = row[0]
+            SingleUserFileCountLimit = int(row[0])
             break
     SUFileCount = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -114,7 +114,7 @@ async def PaperUpload_(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'FileSize'")
         for row in cursor:
-            FileSize = row[0]
+            FileSize = int(row[0])
             break
     res = await file.read()
     if len(res) > FileSize:
