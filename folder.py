@@ -209,7 +209,7 @@ async def folderJoin(
             flag = row[1]
             break
         if not flag:
-            return {"status": 202, "message": "Failed to join folder, this folder is not shared or not exist."}
+            return {"status": 203, "message": "Failed to join folder, this folder is not shared or not exist."}
         else:
             params = list()
             params.append(session_info[1].username)
