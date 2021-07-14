@@ -42,6 +42,7 @@ class FolderJoinInfo(BaseModel):
 class FolderSharedMemberInfo(BaseModel):
     UserName: str
 
+
 async def FolderDelete_(
         folderID: int
 ):
@@ -109,24 +110,25 @@ async def folderList(
     param = list()
     param.append(session_info[1].username)
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT Name, FID FROM Folder WHERE Username = ?", param)
+        cursor = DBConn.execute("SELECT Name, FID, Shared FROM Folder WHERE Username = ?", param)
         for row in cursor:
             folder = dict()
             folder['folderName'] = row[0]
             folder['FID'] = row[1]
+            folder['shared'] = row[2]
             folder['own'] = True
             folder_list.append(folder)
 
         cursor = DBConn.execute("SELECT FID FROM User_Folder WHERE UID = ?", param)
         for row in cursor:
-            folder = dict()
-            folder['folderName'] = row[0]
-            folder['FID'] = row[1]
-            folder['own'] = False
-            param_fid = list()
-            param_fid.append(row[1])
-            flag = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Shared = TRUE", param_fid)
-            if flag.rowcount != 0:
+            param_fid = [row[0]]
+            cursor2 = DBConn.execute("SELECT Name, FID, Shared FROM Folder WHERE FID = ? AND Shared = TRUE", param_fid)
+            for r in cursor2:
+                folder = dict()
+                folder['folderName'] = r[0]
+                folder['FID'] = r[1]
+                folder['shared'] = r[2]
+                folder['own'] = False
                 folder_list.append(folder)
             else:
                 continue
