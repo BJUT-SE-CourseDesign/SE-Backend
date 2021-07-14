@@ -116,7 +116,7 @@ async def userRegister(
 ):
     regEn = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'RegisterEnabled'")
+        cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'RegisterEnabled'")
         for row in cursor:
             regEn = row[0]
             break
