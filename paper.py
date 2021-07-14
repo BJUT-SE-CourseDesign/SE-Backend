@@ -234,10 +234,13 @@ async def paperQuery(
 
     PIDS = []
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = {session_data[1].userID} AND ("
+        params = [session_data[1].userID]
+        SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
         for qw in query_type:
             for kw in keywordList2:
-                SQL += f"OR {qw} LIKE '%{kw}%' "
+                SQL += "OR ? LIKE '%?%' "
+                params.append(qw)
+                params.append(kw)
         SQL += ")"
         cursor = DBConn.execute(SQL)
         for row in cursor:
