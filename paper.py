@@ -34,6 +34,11 @@ class PaperMetaInfo(BaseModel):
     Year: int
 
 
+class PaperNoteInfo(BaseModel):
+    PaperID: int
+    Note: str
+
+
 class PaperDownloadInfo(BaseModel):
     PaperID: int
     Version: int
@@ -156,6 +161,18 @@ async def paperMetadata(
                   paper_meta.Keywords, paper_meta.Year, paper_meta.PaperID]
         DBConn.execute("UPDATE Paper_Meta SET Title = ?, Authors = ?, Conference = ?, Abstract = ?, Keywords = ?, Year = ? WHERE PID = ?", params)
         return {"status": 200, "message": "Paper Meta updated successfully.", "pid": paper_meta.PaperID}
+
+
+@router.post("/paper/note", tags=["users"])
+async def paperNote(
+        paper_note: PaperNoteInfo,
+        session_data: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    await auth.checkLogin(session_data)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        params = [paper_note.Note, paper_note.PaperID]
+        DBConn.execute("UPDATE Paper_Meta SET Note = ? WHERE PID = ?", params)
+        return {"status": 200, "message": "Paper note updated successfully.", "pid": paper_note.PaperID}
 
 
 @router.post("/paper/delete", tags=["users"])
