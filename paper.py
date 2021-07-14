@@ -2,7 +2,7 @@
 from typing import Tuple, Optional, Any, List
 
 from pydantic import BaseModel
-from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile
+from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile, Form
 
 from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
@@ -131,7 +131,7 @@ async def PaperUpload_(
 
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
-        folder_info: folder.FolderDeleteInfo,
+        FolderID: int = Form(...),
         file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -144,7 +144,7 @@ async def paperImport(
         fileUploadPath = uploadResult["fileUploadPath"]
 
         fid = list()
-        fid.append(folder_info.FolderID)
+        fid.append(FolderID)
         with sqlite3.connect(config.DB_PATH) as DBConn:
             DBConn.execute("INSERT INTO Paper(FID, Lock) VALUES (?, FALSE)", fid)
             cursor = DBConn.execute("SELECT MAX(PID) FROM Paper") # Thread unsafe
