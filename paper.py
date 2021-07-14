@@ -138,7 +138,7 @@ async def paperImport(
     await auth.checkLogin(session_data)
     start = time.time()
     try:
-        uploadResult = PaperUpload_(file, session_data[1].username)
+        uploadResult = await PaperUpload_(file, session_data[1].username)
         if uploadResult['status'] != 200:
             return uploadResult
         fileUploadPath = uploadResult["fileUploadPath"]
@@ -352,9 +352,9 @@ async def paperUpload(
                     minVer = row[0]
                     break
                 if minVer != -1:
-                    PaperRevisionDelete_(paper.PaperID, minVer)
+                    await PaperRevisionDelete_(paper.PaperID, minVer)
 
-        uploadResult = PaperUpload_(file, session_info[1].username)
+        uploadResult = await PaperUpload_(file, session_info[1].username)
         if uploadResult['status'] != 200:
             return uploadResult
         fileUploadPath = uploadResult["fileUploadPath"]
