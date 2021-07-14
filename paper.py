@@ -131,7 +131,7 @@ async def PaperUpload_(
 
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
-        folder_info: folder.FolderInfo,
+        folder_info: folder.FolderDeleteInfo,
         file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
