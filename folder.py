@@ -289,7 +289,11 @@ async def folderDeleteMember(
             params_uid_fid.append(fid)
             params_uid_fid.append(uid)
             member = DBConn.execute("SELECT UID FROM User_Folder WHERE FID = ? AND UID = ?", params_uid_fid)
-            if member.rowcount == 1:
+            flag2 = False
+            for row in member:
+                flag2 = True
+                break
+            if flag2:
                 DBConn.execute("DELETE FROM User_Folder WHERE FID = ? AND UID = ?", params_uid_fid)
                 return {"status": 200, "message": "Folder member delete successfully.", "deleteResult": True}
             else:
