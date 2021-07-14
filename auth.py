@@ -39,6 +39,7 @@ curSession = SessionCookie(
     samesite='None'
 )
 
+
 async def checkLogin(
         session_data: Optional[SessionInfo] = Depends(curSession)
 ):
@@ -47,6 +48,7 @@ async def checkLogin(
             status_code=403,
             detail="Not Authenticated"
         )
+
 
 async def needAdminRole(
         session_data: Optional[SessionInfo] = Depends(curSession)
@@ -162,3 +164,13 @@ async def userModifyPassword(
         else:
             return {"status": 202, "message": "Password modification failed, the old password is wrong."}
 
+
+@router.post("/users/isadmin", tags=["users"])
+async def userIsAdmin(
+    session_info: Optional[SessionInfo] = Depends(curSession)
+):
+    await checkLogin(session_info)
+    if session_info[1].role == 'user':
+        return {"status": 200, "message": "Is user.", "flag": False}
+    else:
+        return {"status": 200, "message": "Is admin.", "flag": True}
