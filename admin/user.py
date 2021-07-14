@@ -8,7 +8,7 @@ from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
 
 import sqlite3
-import config, utils, auth
+import config, utils, auth, folder
 
 router = APIRouter()
 
@@ -63,8 +63,12 @@ async def adminUserDelete(
     await auth.needAdminRole(session_info)
 
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        param = list()
-        param.append(user.username)
+        param = (user.username, )
+        cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", param)
+        for row in cursor:
+            fid = row[0]
+            await folder.FolderDelete_(fid)
+            
         cursor = DBConn.execute("DELETE FROM User WHERE Username = ?", param)
         if cursor.rowcount == 1:
             return {"status": 200, "message": "User delete successfully.", "result": True}

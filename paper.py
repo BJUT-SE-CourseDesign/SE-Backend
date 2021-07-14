@@ -47,7 +47,6 @@ class PaperDownloadInfo(BaseModel):
 class PaperUploadInfo(BaseModel):
     PaperID: int
 
-
 async def PaperDelete_(
         PID: int
 ) -> bool:
@@ -91,6 +90,45 @@ async def PaperRevisionDelete_(
 
     return True
 
+async def PaperUpload_(
+        file: UploadFile,
+        username: str
+):
+    SingleUserFileCountLimit = 0
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'SingleUserFileCountLimit'")
+        for row in cursor:
+            SingleUserFileCountLimit = row[0]
+            break
+    SUFileCount = 0
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        params = (username, )
+        cursor = DBConn.execute("SELECT COUNT(*) FROM Folder, Paper, Paper_Revision WHERE Username = ? AND Folder.FID = Paper.FID AND Paper.PID = Paper_Revision.PID", params)
+        for row in cursor:
+            SUFileCount = row[0]
+            break
+    if SUFileCount > SingleUserFileCountLimit:
+        return {"status": 401, "message": "Uploaded file reached Single User File Count Limit."}
+
+    FileSize = 0
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileSize'")
+        for row in cursor:
+            FileSize = row[0]
+            break
+    res = await file.read()
+    if len(res) > FileSize:
+        return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
+    fileSuffix = file.filename.split('.')[-1]
+    if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
+        return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
+    fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
+    with open(fileUploadPath, "wb") as f:
+        f.write(res)
+
+    return {"status": 200, "fileUploadPath":fileUploadPath}
+
+
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
         folder_info: folder.FolderInfo,
@@ -100,21 +138,11 @@ async def paperImport(
     await auth.checkLogin(session_data)
     start = time.time()
     try:
-        FileSize = 0
-        with sqlite3.connect(config.DB_PATH) as DBConn:
-            cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileSize'")
-            for row in cursor:
-                FileSize = row[0]
-                break
-        res = await file.read()
-        if len(res) > FileSize:
-            return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
-        fileSuffix = file.filename.split('.')[-1]
-        if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
-            return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
-        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
-        with open(fileUploadPath, "wb") as f:
-            f.write(res)
+        uploadResult = PaperUpload_(file, session_data[1].username)
+        if uploadResult['status'] != 200:
+            return uploadResult
+        fileUploadPath = uploadResult["fileUploadPath"]
+
         fid = list()
         fid.append(folder_info.FolderID)
         with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -298,21 +326,34 @@ async def paperUpload(
 ):
     await auth.checkLogin(session_info)
     try:
-        FileSize = 0
+        FileRevisionLimit = 0
         with sqlite3.connect(config.DB_PATH) as DBConn:
-            cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileSize'")
+            cursor = DBConn.execute("SELECT Value FROM Settings WHERE Name = 'FileRevisionLimit'")
             for row in cursor:
-                FileSize = row[0]
+                FileRevisionLimit = row[0]
                 break
-        res = await file.read()
-        if len(res) > FileSize:
-            return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
-        fileSuffix = file.filename.split('.')[-1]
-        if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
-            return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
-        fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
-        with open(fileUploadPath, "wb") as f:
-            f.write(res)
+        FRUsage = 0
+        with sqlite3.connect(config.DB_PATH) as DBConn:
+            params = (paper.PaperID,)
+            cursor = DBConn.execute("SELECT COUNT(*) FROM Paper_Revision WHERE Paper.PID = ? ", params)
+            for row in cursor:
+                FRUsage = row[0]
+                break
+        if FRUsage > FileRevisionLimit:
+            minVer = -1
+            with sqlite3.connect(config.DB_PATH) as DBConn:
+                params = (paper.PaperID,)
+                cursor = DBConn.execute("SELECT MIN(Version) FROM Paper_Revision WHERE Paper.PID = ? ", params)
+                for row in cursor:
+                    minVer = row[0]
+                    break
+                if minVer != -1:
+                    PaperRevisionDelete_(paper.PaperID, minVer)
+
+        uploadResult = PaperUpload_(file, session_info[1].username)
+        if uploadResult['status'] != 200:
+            return uploadResult
+        fileUploadPath = uploadResult["fileUploadPath"]
 
         with sqlite3.connect(config.DB_PATH) as DBConn:
             params = list()

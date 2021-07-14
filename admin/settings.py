@@ -29,25 +29,10 @@ async def adminSettingsQuery(
 ):
     await auth.checkLogin(session_info)
     await auth.needAdminRole(session_info)
-    settings_list = dict()
-    with sqlite3.connect(config.DB_PATH) as DBConn:
-        value = 0
-        param = [key_info.Key]
-        cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
-    if session_info is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated"
-        )
-    if role == 'user':
-        raise HTTPException(
-            status_code=403,
-            detail="Not Authenticated, you are not administrator."
-        )
     with sqlite3.connect(config.DB_PATH) as DBConn:
         value = 0
         param = [Key]
-        cursor = DBConn.execute("SELECT Name, Value FROM Setting WHERE Name = ?", param)
+        cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
         for row in cursor:
             value = row[0]
         return {"status": 200, "message": "Settings queried successfully.", "value": value}

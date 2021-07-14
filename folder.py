@@ -42,6 +42,17 @@ class FolderJoinInfo(BaseModel):
 class FolderSharedMemberInfo(BaseModel):
     UserName: str
 
+async def FolderDelete_(
+        folderID: int
+):
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        param = (folderID, )
+        papers = DBConn.execute("SELECT PID FROM Paper WHERE FID = ?", param)
+        for row in papers:
+            PID = row[0]
+            await paper.PaperDelete_(PID)
+        DBConn.execute("DELETE FROM Folder WHERE FID = ?", param)
+
 
 # 在添加一个文件夹的时候，需要选择是否共享
 @router.post("/folder/add", tags=["users"])
@@ -85,13 +96,7 @@ async def folderDelete(
         if flag == False:
             return {"status": 202, "message": "Failed to delete folder, this folder does not belong to you.", "delete_result": False}
         else:
-            param = list()
-            param.append(folder.FolderID)
-            papers = DBConn.execute("SELECT PID FROM Paper WHERE FID = ?", param)
-            for row in papers:
-                PID = row[0]
-                await paper.PaperDelete_(PID)
-            DBConn.execute("DELETE FROM Folder WHERE FID = ?", param)
+            await FolderDelete_(folder.FolderID)
             return {"status": 200, "message": "Folder deleted successfully.", "delete_result": True}
 
 
