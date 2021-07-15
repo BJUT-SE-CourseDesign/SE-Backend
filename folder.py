@@ -204,6 +204,7 @@ async def folderJoin(
     fid = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE FUUID = ?", param)
+        flag = False
         for row in cursor:
             fid = row[0]
             flag = row[1]
