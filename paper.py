@@ -572,8 +572,7 @@ async def paperUpload(
             params.append(time.time())
             params.append(version+1)
             params.append(fileUploadPath)
-            params.append(PaperID)
-            DBConn.execute("INSERT INTO Paper_Revision SET Edit_User = ?, Edit_Time = ?, Version = ?, Path = ? WHERE PID = ?", params)
+            DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, ?, ?)", params)
             return {"status": 200, "message": "Paper upload successfully.",
                     "info": {"PID": PaperID, "editUser": params[0], "editTime": params[1], "version": params[2]}}
     except Exception as e:
