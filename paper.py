@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from typing import Tuple, Optional, Any, List
+from typing import Tuple, Optional, Any, List, Dict
 
 from pydantic import BaseModel
 from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile, Form, BackgroundTasks
@@ -45,6 +45,14 @@ class PaperDownloadInfo(BaseModel):
 
 class PaperUploadInfo(BaseModel):
     PaperID: int
+
+
+class PaperQueryInfo(BaseModel):
+    keywords: Dict[str, str]
+
+
+class PaperFuzzyQueryInfo(BaseModel):
+    keywords: str
 
 
 async def PaperDelete_(
@@ -167,6 +175,16 @@ async def PaperGenMetaData_(
         params = (articleTitle, journalTitle, PID)
         DBConn.execute("UPDATE Paper_Meta SET Title = ?, Conference = ? WHERE PID = ? ", params)
 
+async def JieBaCut_(
+        keywords: str
+):
+    keywordList = jieba.lcut(keywords)
+    keywordList2 = []
+    for kw in keywordList:
+        if kw.strip() != '':
+            keywordList2.append(kw.strip())
+
+    return keywordList2
 
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
@@ -321,26 +339,18 @@ async def paperDelete(
 
 @router.post("/paper/query", tags=["users"])
 async def paperQuery(
-        keywords: str,
-        query_type: List[str],
+        PQI: PaperQueryInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_data)
-    keywordList = jieba.lcut(keywords)
-    keywordList2 = []
-    for kw in keywordList:
-        if kw.strip() != '':
-            keywordList2.append(kw.strip())
-
-    if len(keywordList2) == 0:
-        return {"status": 200, "message": "Paper queried successfully.", "pids": {}}
+    dic = PQI.keywords
 
     PIDS = []
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = [session_data[1].userID]
         SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
-        for qw in query_type:
-            for kw in keywordList2:
+        for qw in dic.keys():
+            for kw in await JieBaCut_(dic[qw]):
                 SQL += "OR ? LIKE '%?%' "
                 params.append(qw)
                 params.append(kw)
@@ -353,11 +363,12 @@ async def paperQuery(
 
 
 @router.post("/paper/fuzzyquery", tags=["users"])
-async def papeFuzzyrQuery(
-        keywords: str,
+async def papeFuzzyQuery(
+        PFQI: PaperFuzzyQueryInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_data)
+    keywords = PFQI.keywords
     query_type = ['Title', 'Authors', 'Conference', 'Keywords', 'Year']
     keywordList = jieba.lcut(keywords)
     keywordList2 = []
