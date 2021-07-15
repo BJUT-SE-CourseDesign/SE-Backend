@@ -179,8 +179,8 @@ async def paperFolder(
 
 
 # 自动解析，由前端请求另外一个接口，与当前程序无关
-@router.post("/paper/metadata", tags=["users"])
-async def paperMetadata(
+@router.post("/paper/modifymetadata", tags=["users"])
+async def paperModifyMetadata(
         paper_meta: PaperMetaInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -190,6 +190,27 @@ async def paperMetadata(
                   paper_meta.Keywords, paper_meta.Year, paper_meta.PaperID]
         DBConn.execute("UPDATE Paper_Meta SET Title = ?, Authors = ?, Conference = ?, Abstract = ?, Keywords = ?, Year = ? WHERE PID = ?", params)
         return {"status": 200, "message": "Paper Meta updated successfully.", "pid": paper_meta.PaperID}
+
+
+@router.post("/paper/getmetadata", tags=["users"])
+async def paperGetMetadata(
+        paper_info: PaperInfo,
+        session_data: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    await auth.checkLogin(session_data)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        param = [paper_info.PaperID]
+        cursor = DBConn.execute("SELECT Title, Authors, Conference, Abstract, Keywords, Year FROM Paper_Meta WHERE PID = ?", param)
+        meta = dict()
+        for row in cursor:
+            meta['Title'] = row[0]
+            meta['Authors'] = row[1]
+            meta['Conference'] = row[2]
+            meta['Abstract'] = row[3]
+            meta['Keywords'] = row[4]
+            meta['Year'] = row[5]
+            break
+        return {"status": 200, "message": "Paper Meta updated successfully.", "meta": meta}
 
 
 @router.post("/paper/note", tags=["users"])
