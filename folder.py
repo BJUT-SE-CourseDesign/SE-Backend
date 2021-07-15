@@ -118,8 +118,11 @@ async def folderList(
             folder['shared'] = row[2]
             folder['own'] = True
             folder_list.append(folder)
-
-        cursor = DBConn.execute("SELECT FID FROM User_Folder WHERE UID = ?", param)
+        UserID = DBConn.execute("SELECT UID FROM User WHERE Username = ?", param)
+        for ID in UserID:
+            param_uid.append(ID[0])
+            break
+        cursor = DBConn.execute("SELECT FID FROM User_Folder WHERE UID = ?", param_uid)
         for row in cursor:
             param_fid = [row[0]]
             cursor2 = DBConn.execute("SELECT Name, FID, Shared FROM Folder WHERE FID = ? AND Shared = TRUE", param_fid)

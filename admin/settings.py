@@ -17,10 +17,10 @@ import time
 router = APIRouter()
 
 
-
 class SettingInfo(BaseModel):
     Key: str
     Value: int
+
 
 class SettingKey(BaseModel):
     Key: str
