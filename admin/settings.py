@@ -22,17 +22,20 @@ class SettingInfo(BaseModel):
     Key: str
     Value: int
 
+class SettingKey(BaseModel):
+    Key: str
+
 
 @router.post("/admin/settings/query", tags=["users"])
 async def adminSettingsQuery(
-        Key: str = Body(...),
+        sk: SettingKey,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
     await auth.needAdminRole(session_info)
     with sqlite3.connect(config.DB_PATH) as DBConn:
         value = 0
-        param = [Key]
+        param = [sk.Key]
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
         flag = False
         for row in cursor:
