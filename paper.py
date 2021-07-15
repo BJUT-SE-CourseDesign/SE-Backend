@@ -92,6 +92,7 @@ async def PaperRevisionDelete_(
 
     return True
 
+
 async def PaperUpload_(
         file: UploadFile,
         username: str
@@ -241,8 +242,23 @@ async def paperGetMetadata(
         return {"status": 202, "message": "Something is wrong"}
 
 
-@router.post("/paper/note", tags=["users"])
-async def paperNote(
+@router.post("/paper/getnote", tags=["users"])
+async def paperGetNote(
+        paper_info: PaperInfo,
+        session_data: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    await auth.checkLogin(session_data)
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        note = str()
+        params = [paper_info.PaperID]
+        cursor = DBConn.execute("SELECT Note FROM Paper_Meta WHERE PID = ?", params)
+        for row in cursor:
+            note = row[0]
+        return {"status": 200, "message": "Paper note got successfully.", "note": note}
+
+
+@router.post("/paper/modifynote", tags=["users"])
+async def paperModifyNote(
         paper_note: PaperNoteInfo,
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
 ):
