@@ -172,8 +172,12 @@ async def PaperGenMetaData_(
     except Exception as e:
         articleTitle = ""
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = (articleTitle, journalTitle, PID)
-        DBConn.execute("UPDATE Paper_Meta SET Title = ?, Conference = ? WHERE PID = ? ", params)
+        if journalTitle != "":
+            params = (journalTitle, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Conference = ? WHERE PID = ? ", params)
+        if articleTitle != "":
+            params = (articleTitle, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Title = ? WHERE PID = ? ", params)
 
 async def JieBaCut_(
         keywords: str
@@ -347,14 +351,11 @@ async def paperQuery(
 
     PIDS = []
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = [session_data[1].userID]
-        SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
+        SQL = f"SELECT Paper.PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = {session_data[1].userID} AND ("
         for qw in dic.keys():
             for kw in await JieBaCut_(dic[qw]):
-                SQL += "OR ? LIKE '%?%' "
-                params.append(qw)
-                params.append(kw)
-        SQL += ")"
+                SQL += f" '{qw}' LIKE '%{kw}%' OR "
+        SQL += "0 )"
         cursor = DBConn.execute(SQL)
         for row in cursor:
             PIDS.append(row[0])
@@ -381,15 +382,13 @@ async def papeFuzzyQuery(
 
     PIDS = []
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = [session_data[1].userID]
-        SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
+        SQL = f"SELECT Paper.PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = {session_data[1].userID} AND ("
         for qw in query_type:
             for kw in keywordList2:
-                SQL += "OR ? LIKE '%?%' "
-                params.append(qw)
-                params.append(kw)
-        SQL += ")"
+                SQL += f" {qw} LIKE '%{kw}%' OR "
+        SQL += "0 )"
         cursor = DBConn.execute(SQL)
+        print(SQL)
         for row in cursor:
             PIDS.append(row[0])
 
