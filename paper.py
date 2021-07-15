@@ -385,11 +385,10 @@ async def papeFuzzyQuery(
 
         for qw in query_type:
             for kw in keywordList2:
-                SQL += f" ? LIKE '%{kw}%' OR "
-                params.append(qw)
+                SQL += f" {qw} LIKE '%{kw}%' OR "
         SQL += "0 )"
-        cursor = DBConn.execute(SQL, params)
-        print(SQL, params)
+        cursor = DBConn.execute(SQL)
+        print(SQL)
         for row in cursor:
             PIDS.append(row[0])
 
