@@ -524,7 +524,7 @@ async def paperDownloadLatest(
 # 此函数待讨论，我的意思是把现有版本同步到云端的操作。本函数还未加入接口说明中。
 @router.post("/paper/upload", tags=["users"])
 async def paperUpload(
-        paper: PaperUploadInfo,
+        PaperID: int = Form(...),
         file: UploadFile = File(...),
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
@@ -538,7 +538,7 @@ async def paperUpload(
                 break
         FRUsage = 0
         with sqlite3.connect(config.DB_PATH) as DBConn:
-            params = (paper.PaperID,)
+            params = (PaperID,)
             cursor = DBConn.execute("SELECT COUNT(*) FROM Paper_Revision WHERE Paper.PID = ? ", params)
             for row in cursor:
                 FRUsage = row[0]
@@ -546,13 +546,13 @@ async def paperUpload(
         if FRUsage > FileRevisionLimit:
             minVer = -1
             with sqlite3.connect(config.DB_PATH) as DBConn:
-                params = (paper.PaperID,)
+                params = (PaperID,)
                 cursor = DBConn.execute("SELECT MIN(Version) FROM Paper_Revision WHERE Paper.PID = ? ", params)
                 for row in cursor:
                     minVer = row[0]
                     break
                 if minVer != -1:
-                    await PaperRevisionDelete_(paper.PaperID, minVer)
+                    await PaperRevisionDelete_(PaperID, minVer)
 
         uploadResult = await PaperUpload_(file, session_info[1].username)
         if uploadResult['status'] != 200:
@@ -562,7 +562,7 @@ async def paperUpload(
         with sqlite3.connect(config.DB_PATH) as DBConn:
             params = list()
             version = 0
-            params.append(paper.PaperID)
+            params.append(PaperID)
             cursor_version = DBConn.execute("SELECT MAX(Version) FROM Paper_Revision WHERE PID = ?", params)
             for r in cursor_version:
                 version = r[0]
@@ -571,12 +571,12 @@ async def paperUpload(
             params.append(time.time())
             params.append(version+1)
             params.append(fileUploadPath)
-            params.append(paper.PaperID)
+            params.append(PaperID)
             DBConn.execute("INSERT INTO Paper_Revision SET Edit_User = ?, Edit_Time = ?, Version = ?, Path = ? WHERE PID = ?", params)
             return {"status": 200, "message": "Paper upload successfully.",
-                    "info": {"PID": paper.PaperID, "editUser": params[0], "editTime": params[1], "version": params[2]}}
+                    "info": {"PID": PaperID, "editUser": params[0], "editTime": params[1], "version": params[2]}}
     except Exception as e:
-        return {"status": 400, "message": str(e), "PID": paper.PaperID}
+        return {"status": 400, "message": str(e), "PID": PaperID}
 
 
 @router.post("/paper/list", tags=["users"])
