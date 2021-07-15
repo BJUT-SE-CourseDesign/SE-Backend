@@ -216,7 +216,7 @@ async def paperGetMetadata(
         for row in version:
             params.append(row[0])
             break
-        cursor = DBConn.execute("SELECT Paper_Revision.PID, Path, FID FROM Paper_Revision, Paper WHERE PID = ? AND Version = ? AND Paper_Revision.PID = Paper.PID", params)
+        cursor = DBConn.execute("SELECT Paper_Revision.PID, Path, FID FROM Paper_Revision, Paper WHERE Paper_Revision.PID = ? AND Version = ? AND Paper_Revision.PID = Paper.PID", params)
         pid = 0
         fid = 0
         path = ""
