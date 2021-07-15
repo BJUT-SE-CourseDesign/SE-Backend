@@ -47,6 +47,7 @@ class PaperDownloadInfo(BaseModel):
 class PaperUploadInfo(BaseModel):
     PaperID: int
 
+
 async def PaperDelete_(
         PID: int
 ) -> bool:
@@ -71,6 +72,7 @@ async def PaperDelete_(
         if cursor.rowcount == 0: return False
 
     return True
+
 
 async def PaperRevisionDelete_(
         PID: int,
@@ -422,10 +424,7 @@ async def paperDownloadLatest(
             pid = r[0]
             path = r[1]
             break
-        if pid == paper.PaperID:
-            return {"status": 200, "message": "Paper download successfully.", "address": config.SITE_PATH + path}
-        else:
-            return {"status": 202, "message": "Fail to download paper."}
+        return {"status": 200, "message": "Paper download successfully.", "address": config.SITE_PATH + path}
 
 
 # 此函数待讨论，我的意思是把现有版本同步到云端的操作。本函数还未加入接口说明中。
