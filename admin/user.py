@@ -46,7 +46,7 @@ async def adminUserModifyPassword(
     await auth.needAdminRole(session_info)
     # Authentication: Password is MD5 Digested
     with sqlite3.connect(config.DB_PATH) as DBConn:
-        params = (utils.MD5(user.newPassword), session_info[1].username)
+        params = (utils.MD5(user.newPassword), user.username)
         cursor = DBConn.execute("UPDATE User SET Password = ? WHERE Username = ?", params)
         if cursor.rowcount == 1:
             return {"status": 200, "message": "Password modified successfully.", "result": True}
