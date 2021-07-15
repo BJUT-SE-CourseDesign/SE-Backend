@@ -154,6 +154,8 @@ async def paperImport(
                 break
             params = [pid, session_data[1].username, time.time(), fileUploadPath]
             DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, 0, ?)", params)
+            params2 = [pid, file.filename]
+            DBConn.execute("INSERT INTO Paper_Meta(PID, Title) VALUES (?,?)", params2)
             return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'PID': pid}
     except Exception as e:
         traceback.print_exc()
@@ -178,7 +180,6 @@ async def paperFolder(
             return {"status": 202, "message": "Fail to move paper.", "flag": False}
 
 
-# 自动解析，由前端请求另外一个接口，与当前程序无关
 @router.post("/paper/modifymetadata", tags=["users"])
 async def paperModifyMetadata(
         paper_meta: PaperMetaInfo,
