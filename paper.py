@@ -351,9 +351,8 @@ async def paperQuery(
         SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
         for qw in dic.keys():
             for kw in await JieBaCut_(dic[qw]):
-                SQL += "OR ? LIKE '%?%' "
+                SQL += f"OR ? LIKE '%{kw}%' "
                 params.append(qw)
-                params.append(kw)
         SQL += ")"
         cursor = DBConn.execute(SQL)
         for row in cursor:
@@ -385,9 +384,8 @@ async def papeFuzzyQuery(
         SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
         for qw in query_type:
             for kw in keywordList2:
-                SQL += "OR ? LIKE '%?%' "
+                SQL += f"OR ? LIKE '%{kw}%' "
                 params.append(qw)
-                params.append(kw)
         SQL += ")"
         cursor = DBConn.execute(SQL)
         for row in cursor:
