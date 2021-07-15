@@ -19,7 +19,6 @@ class PaperInfo(BaseModel):
 
 
 class PaperMoveInfo(BaseModel):
-    old_folderID: int
     new_folderID: int
     PaperID: int
 
@@ -208,8 +207,7 @@ async def paperFolder(
         params = list()
         params.append(paper_folder_info.new_folderID)
         params.append(paper_folder_info.PaperID)
-        params.append(paper_folder_info.old_folderID)
-        cursor = DBConn.execute("UPDATE Paper SET FID = ? WHERE PID = ? AND FID = ?", params)
+        cursor = DBConn.execute("UPDATE Paper SET FID = ? WHERE PID = ?", params)
         if cursor.rowcount == 1:
             return {"status": 200, "message": "Paper moved successfully.", "flag": True}
         else:
