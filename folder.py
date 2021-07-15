@@ -119,6 +119,7 @@ async def folderList(
             folder['own'] = True
             folder_list.append(folder)
         UserID = DBConn.execute("SELECT UID FROM User WHERE Username = ?", param)
+        param_uid = list()
         for ID in UserID:
             param_uid.append(ID[0])
             break
