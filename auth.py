@@ -152,7 +152,6 @@ async def userRegister(
             for fid in FID:
                 params_uid_fid.append(fid[0])
                 break
-            DBConn.execute("INSERT INTO User_Folder(UID, FID) VALUES (?, ?)", params_uid_fid)
             return {"status": 200, "message": "Registered successfully."}
 
 
