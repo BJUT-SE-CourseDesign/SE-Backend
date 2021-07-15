@@ -354,7 +354,7 @@ async def paperQuery(
                 SQL += f" ? LIKE '%{kw}%' OR "
                 params.append(qw)
         SQL += "0 )"
-        cursor = DBConn.execute(SQL)
+        cursor = DBConn.execute(SQL, params)
         for row in cursor:
             PIDS.append(row[0])
 
@@ -388,7 +388,7 @@ async def papeFuzzyQuery(
                 SQL += f" ? LIKE '%{kw}%' OR "
                 params.append(qw)
         SQL += "0 )"
-        cursor = DBConn.execute(SQL)
+        cursor = DBConn.execute(SQL, params)
         for row in cursor:
             PIDS.append(row[0])
 
