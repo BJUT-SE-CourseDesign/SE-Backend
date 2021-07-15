@@ -102,7 +102,8 @@ async def PaperRevisionDelete_(
 
 async def PaperUpload_(
         file: UploadFile,
-        username: str
+        username: str,
+        checkFileType: bool = True
 ):
     SingleUserFileCountLimit = 0
     with sqlite3.connect(config.DB_PATH) as DBConn:
@@ -130,7 +131,7 @@ async def PaperUpload_(
     if len(res) > FileSize:
         return {"status": 402, "message": "Uploaded illegal file, filesize reached its maximium limit."}
     fileSuffix = file.filename.split('.')[-1]
-    if fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
+    if checkFileType and fileSuffix not in ['pdf', 'docx', 'pptx', 'xlsx']:
         return {"status": 403, "message": "Uploaded illegal file, allowed suffix: pdf, docx, pptx, xlsx."}
     fileUploadPath = config.UPLOAD_PATH + utils.getNewUUID() + "." + fileSuffix
     with open(fileUploadPath, "wb") as f:
@@ -554,7 +555,7 @@ async def paperUpload(
                 if minVer != -1:
                     await PaperRevisionDelete_(PaperID, minVer)
 
-        uploadResult = await PaperUpload_(file, session_info[1].username)
+        uploadResult = await PaperUpload_(file, session_info[1].username, False)
         if uploadResult['status'] != 200:
             return uploadResult
         fileUploadPath = uploadResult["fileUploadPath"]
