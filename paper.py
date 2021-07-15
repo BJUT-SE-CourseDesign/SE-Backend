@@ -539,7 +539,7 @@ async def paperUpload(
         FRUsage = 0
         with sqlite3.connect(config.DB_PATH) as DBConn:
             params = (PaperID,)
-            cursor = DBConn.execute("SELECT COUNT(*) FROM Paper_Revision WHERE Paper.PID = ? ", params)
+            cursor = DBConn.execute("SELECT COUNT(*) FROM Paper_Revision WHERE PID = ? ", params)
             for row in cursor:
                 FRUsage = row[0]
                 break
@@ -547,7 +547,7 @@ async def paperUpload(
             minVer = -1
             with sqlite3.connect(config.DB_PATH) as DBConn:
                 params = (PaperID,)
-                cursor = DBConn.execute("SELECT MIN(Version) FROM Paper_Revision WHERE Paper.PID = ? ", params)
+                cursor = DBConn.execute("SELECT MIN(Version) FROM Paper_Revision WHERE PID = ? ", params)
                 for row in cursor:
                     minVer = row[0]
                     break
