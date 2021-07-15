@@ -26,12 +26,6 @@ app.add_middleware(
     allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allow_headers=["*"],
 )
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=config.SESSION_SECRET_KEY,
-    same_site="None",
-    https_only=True
-)
 
 app.include_router(auth.router)
 app.include_router(paper.router)
