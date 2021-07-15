@@ -16,6 +16,14 @@ from admin import user
 
 app = FastAPI()
 
+app.include_router(auth.router)
+app.include_router(paper.router)
+app.include_router(folder.router)
+app.include_router(settings.router)
+app.include_router(fd.router)
+app.include_router(user.router)
+app.mount(path='/upload/', app=StaticFiles(directory='./upload'))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -26,15 +34,6 @@ app.add_middleware(
     allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allow_headers=["*"],
 )
-
-app.include_router(auth.router)
-app.include_router(paper.router)
-app.include_router(folder.router)
-app.include_router(settings.router)
-app.include_router(fd.router)
-app.include_router(user.router)
-
-app.mount(path='/upload/', app=StaticFiles(directory='./upload'))
 
 @app.get('/')
 def index(
