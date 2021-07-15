@@ -10,6 +10,9 @@ fastapi-sessions = "*"
 jieba = "*"
 python-multipart = "*"
 aiofiles = "*"
+requests = "*"
+asyncio = "*"
+xmltodict = "*"
 
 [dev-packages]
 

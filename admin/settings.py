@@ -45,7 +45,7 @@ async def adminSettingsQuery(
         if flag:
             return {"status": 200, "message": "Settings queried successfully.", "value": value}
         else:
-            return {"status": 202, "message": "Fail to quiery settings"}
+            return {"status": 202, "message": "Fail to query settings"}
 
 
 @router.post("/admin/settings/modify", tags=["users"])

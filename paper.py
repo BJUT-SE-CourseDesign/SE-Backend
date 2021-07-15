@@ -2,13 +2,13 @@
 from typing import Tuple, Optional, Any, List
 
 from pydantic import BaseModel
-from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile, Form
+from fastapi import Depends, Response, HTTPException, APIRouter, Body, File, UploadFile, Form, BackgroundTasks
 
 from fastapi_sessions import SessionCookie, SessionInfo
 from fastapi_sessions.backends import InMemoryBackend
 from starlette.responses import FileResponse
 
-import sqlite3, time, jieba, os, traceback, time
+import sqlite3, time, jieba, os, traceback, requests, asyncio, xmltodict
 import config, auth, folder, utils
 
 router = APIRouter()
@@ -130,9 +130,41 @@ async def PaperUpload_(
 
     return {"status": 200, "fileUploadPath":fileUploadPath}
 
+async def PaperGenMetaData_(
+        PID: int,
+        fileUploadPath: str
+):
+    files = {'file': open(fileUploadPath, 'rb')}
+    r = requests.post(config.CERMINE_URL, files=files)
+    id = r.text
+
+    flag = False
+    XMLResult = ""
+
+    for i in range(60):
+        par = {'id': id}
+        r = requests.get('https://cermine.renjikai.com/query.php', params=par)
+        timeArray = time.localtime(time.time())
+        if r.text != 'Error':
+            flag = True
+            XMLResult = r.text
+            break
+        await asyncio.sleep(5)
+
+    if not flag:
+        return
+
+    dic = xmltodict.parse(XMLResult)
+    journalTitle = dic['article']['front']['journal-meta']['journal-title-group']['journal-title']
+    articleTitle = dic['article']['front']['article-meta']['title-group']['article-title']
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        params = (articleTitle, journalTitle, PID)
+        DBConn.execute("UPDATE Paper_Meta SET Title = ?, Conference = ? WHERE PID = ? ", params)
+
 
 @router.post("/paper/import", tags=["users"])
 async def paperImport(
+        background_tasks: BackgroundTasks,
         FolderID: int = Form(...),
         file: UploadFile = File(...),
         session_data: Optional[SessionInfo] = Depends(auth.curSession)
@@ -158,6 +190,7 @@ async def paperImport(
             DBConn.execute("INSERT INTO Paper_Revision(PID, Edit_User, Edit_Time, Version, Path) VALUES (?, ?, ?, 0, ?)", params)
             params2 = [pid, file.filename]
             DBConn.execute("INSERT INTO Paper_Meta(PID, Title) VALUES (?,?)", params2)
+            background_tasks.add_task(PaperGenMetaData_, pid, fileUploadPath)
             return {"status": 200, "message": "Paper successfully imported.", 'time': time.time() - start, 'PID': pid}
     except Exception as e:
         traceback.print_exc()
