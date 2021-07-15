@@ -25,7 +25,7 @@ class FolderIDInfo(BaseModel):
     FolderID: int
 
 
-@router.get("/admin/folder/list", tags=["users"])
+@router.post("/admin/folder/list", tags=["users"])
 async def adminFolderList(
         user: UserNameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
