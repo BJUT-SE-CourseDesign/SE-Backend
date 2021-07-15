@@ -389,6 +389,7 @@ async def papeFuzzyQuery(
                 params.append(qw)
         SQL += "0 )"
         cursor = DBConn.execute(SQL, params)
+        print(SQL, params)
         for row in cursor:
             PIDS.append(row[0])
 
