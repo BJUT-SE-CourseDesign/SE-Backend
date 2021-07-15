@@ -319,6 +319,33 @@ async def paperDownload(
             return {"status": 202, "message": "Fail to download paper."}
 
 
+@router.post("/paper/downloadlatest", tags=["users"])
+async def paperDownloadLatest(
+        paper: PaperInfo,
+        session_info: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    await auth.checkLogin(session_info)
+    params = list()
+    params.append(paper.PaperID)
+
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        version = DBConn.execute("SELECT MAX(Version) FROM Paper_Revision WHERE PID = ?", params)
+        for row in version:
+            params.append(row[0])
+            break
+        cursor = DBConn.execute("SELECT PID, Path FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
+        pid = 0
+        path = ""
+        for r in cursor:
+            pid = r[0]
+            path = r[1]
+            break
+        if pid == paper.PaperID:
+            return {"status": 200, "message": "Paper download successfully.", "address": config.SITE_PATH + path}
+        else:
+            return {"status": 202, "message": "Fail to download paper."}
+
+
 # 此函数待讨论，我的意思是把现有版本同步到云端的操作。本函数还未加入接口说明中。
 @router.post("/paper/upload", tags=["users"])
 async def paperUpload(
@@ -379,7 +406,7 @@ async def paperUpload(
 
 @router.post("/paper/list", tags=["users"])
 async def paperList(
-        paper: PaperDownloadInfo,
+        paper: PaperInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
