@@ -155,8 +155,14 @@ async def PaperGenMetaData_(
         return
 
     dic = xmltodict.parse(XMLResult)
-    journalTitle = dic['article']['front']['journal-meta']['journal-title-group']['journal-title']
-    articleTitle = dic['article']['front']['article-meta']['title-group']['article-title']
+    try:
+        journalTitle = dic['article']['front']['journal-meta']['journal-title-group']['journal-title']
+    except Exception as e:
+        journalTitle = ""
+    try:
+        articleTitle = dic['article']['front']['article-meta']['title-group']['article-title']
+    except Exception as e:
+        articleTitle = ""
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = (articleTitle, journalTitle, PID)
         DBConn.execute("UPDATE Paper_Meta SET Title = ?, Conference = ? WHERE PID = ? ", params)
