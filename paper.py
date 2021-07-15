@@ -256,8 +256,7 @@ async def paperLock(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
-    params = list()
-    params.append(paper.PaperID)
+    params = [paper.PaperID]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT PID FROM Paper WHERE PID = ? AND Lock = false", params)
         pid = 0
@@ -278,8 +277,7 @@ async def paperUnlock(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
-    params = list()
-    params.append(paper.PaperID)
+    params = [paper.PaperID]
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT PID FROM PAPER WHERE PID = ? AND Lock = true", params)
         pid = 0
@@ -395,13 +393,12 @@ async def paperList(
         return {"status": 200, "message": "Paper listed successfully.", "version_list": versionList}
 
 
-@router.post("/paper/all", tags=["users"])
+@router.get("/paper/all", tags=["users"])
 async def paperAll(
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
-    param = list()
-    param.append(session_info[1].username)
+    param = [session_info[1].username]
     pids = list()
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT FID FROM Folder WHERE Username = ?", param)
