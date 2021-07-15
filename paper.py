@@ -218,15 +218,13 @@ async def paperGetMetadata(
         for row in version:
             params.append(row[0])
             break
-        cursor = DBConn.execute("SELECT Paper_Revision.PID, Path, FID FROM Paper_Revision, Paper WHERE Paper_Revision.PID = ? AND Version = ? AND Paper_Revision.PID = Paper.PID", params)
+        cursor = DBConn.execute("SELECT PID, Path FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
         pid = 0
-        fid = 0
         path = ""
         add_time = str()
         for r in cursor:
             pid = r[0]
             path = r[1]
-            fid = r[2]
             break
         add_time_cursor = DBConn.execute("SELECT Edit_Time FROM Paper_Revision WHERE PID = ? AND Version = 0", param)
         for r in add_time_cursor:
@@ -238,7 +236,7 @@ async def paperGetMetadata(
             tmp = path.split('.')
             meta['Type'] = tmp[-1]
             meta['AddTime'] = add_time
-            meta['FID'] = fid
+            meta['PID'] = pid
             return {"status": 200, "message": "Paper Meta updated successfully.", "meta": meta}
         return {"status": 202, "message": "Something is wrong"}
 
