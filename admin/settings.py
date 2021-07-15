@@ -17,6 +17,7 @@ import time
 router = APIRouter()
 
 
+
 class SettingInfo(BaseModel):
     Key: str
     Value: int
@@ -24,7 +25,7 @@ class SettingInfo(BaseModel):
 
 @router.post("/admin/settings/query", tags=["users"])
 async def adminSettingsQuery(
-        Key: str,
+        Key: str = Body(...),
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
 ):
     await auth.checkLogin(session_info)
