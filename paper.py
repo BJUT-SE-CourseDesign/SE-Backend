@@ -211,7 +211,23 @@ async def paperGetMetadata(
             meta['Keywords'] = row[4]
             meta['Year'] = row[5]
             break
-        return {"status": 200, "message": "Paper Meta updated successfully.", "meta": meta}
+        params = [paper_info.PaperID]
+        version = DBConn.execute("SELECT MAX(Version) FROM Paper_Revision WHERE PID = ?", params)
+        for row in version:
+            params.append(row[0])
+            break
+        cursor = DBConn.execute("SELECT PID, Path FROM Paper_Revision WHERE PID = ? AND Version = ?", params)
+        pid = 0
+        path = ""
+        for r in cursor:
+            pid = r[0]
+            path = r[1]
+            break
+        if pid == paper_info.PaperID:
+            tmp = path.split()
+            meta['Type'] = tmp[-1]
+            return {"status": 200, "message": "Paper Meta updated successfully.", "meta": meta}
+        return {"status": 202, "message": "Something is wrong"}
 
 
 @router.post("/paper/note", tags=["users"])
