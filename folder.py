@@ -206,6 +206,7 @@ async def folderJoin(
         cursor = DBConn.execute("SELECT FID, Shared FROM Folder WHERE FUUID = ?", param)
         flag = 0
         for row in cursor:
+            print(row)
             fid = row[0]
             flag = row[1]
             break
