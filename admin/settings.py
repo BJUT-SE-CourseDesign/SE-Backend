@@ -22,7 +22,7 @@ class SettingInfo(BaseModel):
     Value: int
 
 
-@router.get("/admin/settings/query", tags=["users"])
+@router.post("/admin/settings/query", tags=["users"])
 async def adminSettingsQuery(
         Key: str,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
