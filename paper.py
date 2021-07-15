@@ -176,7 +176,7 @@ async def PaperGenMetaData_(
         year = 0
     try:
         authors = ""
-        for elem in dic['article']['front']['article-meta']['contrib-group']:
+        for elem in dic['article']['front']['article-meta']['contrib-group']['contrib']:
             authors += elem['string-name'] + ';'
     except Exception as e:
         authors = ""
