@@ -25,7 +25,7 @@ class FolderIDInfo(BaseModel):
     FolderID: int
 
 
-@router.post("/admin/folder/list", tags=["users"])
+@router.get("/admin/folder/list", tags=["users"])
 async def adminFolderList(
         user: UserNameInfo,
         session_info: Optional[SessionInfo] = Depends(auth.curSession)
@@ -55,11 +55,9 @@ async def adminFolderList(
             folder['own'] = False
             param_fid = list()
             param_fid.append(row[1])
-            flag = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Shared = True", param_fid)
-            if flag.rowcount != 0:
+            fid = DBConn.execute("SELECT FID FROM Folder WHERE FID = ? AND Shared = True", param_fid)
+            for f in fid:
                 folder_list.append(folder)
-            else:
-                continue
         return {"status": 200, "message": "Folder listed successfully.", "folder_list": folder_list}
 
 
