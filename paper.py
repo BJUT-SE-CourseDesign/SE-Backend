@@ -224,7 +224,7 @@ async def paperGetMetadata(
             path = r[1]
             break
         if pid == paper_info.PaperID:
-            tmp = path.split()
+            tmp = path.split('.')
             meta['Type'] = tmp[-1]
             return {"status": 200, "message": "Paper Meta updated successfully.", "meta": meta}
         return {"status": 202, "message": "Something is wrong"}
