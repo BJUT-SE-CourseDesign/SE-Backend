@@ -351,9 +351,9 @@ async def paperQuery(
         SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
         for qw in dic.keys():
             for kw in await JieBaCut_(dic[qw]):
-                SQL += f"OR ? LIKE '%{kw}%' "
+                SQL += f" ? LIKE '%{kw}%' OR "
                 params.append(qw)
-        SQL += ")"
+        SQL += "0 )"
         cursor = DBConn.execute(SQL)
         for row in cursor:
             PIDS.append(row[0])
@@ -382,11 +382,12 @@ async def papeFuzzyQuery(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         params = [session_data[1].userID]
         SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
+
         for qw in query_type:
             for kw in keywordList2:
-                SQL += f"OR ? LIKE '%{kw}%' "
+                SQL += f" ? LIKE '%{kw}%' OR "
                 params.append(qw)
-        SQL += ")"
+        SQL += "0 )"
         cursor = DBConn.execute(SQL)
         for row in cursor:
             PIDS.append(row[0])
