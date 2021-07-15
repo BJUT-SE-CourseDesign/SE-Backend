@@ -118,7 +118,7 @@ async def userRegister(
     with sqlite3.connect(config.DB_PATH) as DBConn:
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'RegisterEnabled'")
         for row in cursor:
-            regEn = row[0]
+            regEn = int(row[0])
             break
     if regEn == 0:
         return {"status": 403, "message": "Registration Closed."}
