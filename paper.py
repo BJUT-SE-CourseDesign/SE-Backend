@@ -534,7 +534,7 @@ async def paperUpload(
         with sqlite3.connect(config.DB_PATH) as DBConn:
             cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = 'FileRevisionLimit'")
             for row in cursor:
-                FileRevisionLimit = row[0]
+                FileRevisionLimit = int(row[0])
                 break
         FRUsage = 0
         with sqlite3.connect(config.DB_PATH) as DBConn:
