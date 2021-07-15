@@ -152,7 +152,6 @@ async def PaperGenMetaData_(
     for i in range(60):
         par = {'id': id}
         r = requests.get('https://cermine.renjikai.com/query.php', params=par)
-        timeArray = time.localtime(time.time())
         if r.text != 'Error':
             flag = True
             XMLResult = r.text
@@ -171,6 +170,27 @@ async def PaperGenMetaData_(
         articleTitle = dic['article']['front']['article-meta']['title-group']['article-title']
     except Exception as e:
         articleTitle = ""
+    try:
+        year = dic['article']['front']['article-meta']['pub-date']['year']
+    except Exception as e:
+        year = 0
+    try:
+        authors = ""
+        for elem in dic['article']['front']['article-meta']['contrib-group']:
+            authors += elem['string-name'] + ';'
+    except Exception as e:
+        authors = ""
+    try:
+        abstract = dic['article']['front']['article-meta']['abstract']['p']
+    except Exception as e:
+        abstract = ""
+    try:
+        keywords = ""
+        for elem in dic['article']['front']['article-meta']['kwd-group']['kwd']:
+            keywords += elem + ';'
+    except Exception as e:
+        keywords = ""
+
     with sqlite3.connect(config.DB_PATH) as DBConn:
         if journalTitle != "":
             params = (journalTitle, PID)
@@ -178,6 +198,19 @@ async def PaperGenMetaData_(
         if articleTitle != "":
             params = (articleTitle, PID)
             DBConn.execute("UPDATE Paper_Meta SET Title = ? WHERE PID = ? ", params)
+        if year != 0:
+            params = (year, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Year = ? WHERE PID = ? ", params)
+        if authors != "":
+            params = (authors, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Authors = ? WHERE PID = ? ", params)
+        if abstract != "":
+            params = (abstract, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Abstract = ? WHERE PID = ? ", params)
+        if keywords != "":
+            params = (keywords, PID)
+            DBConn.execute("UPDATE Paper_Meta SET Keywords = ? WHERE PID = ? ", params)
+
 
 async def JieBaCut_(
         keywords: str
