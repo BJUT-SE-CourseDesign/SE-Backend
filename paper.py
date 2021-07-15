@@ -576,6 +576,7 @@ async def paperUpload(
             return {"status": 200, "message": "Paper upload successfully.",
                     "info": {"PID": PaperID, "editUser": params[0], "editTime": params[1], "version": params[2]}}
     except Exception as e:
+        traceback.print_exc()
         return {"status": 400, "message": str(e), "PID": PaperID}
 
 
