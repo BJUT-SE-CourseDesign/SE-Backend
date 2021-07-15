@@ -33,9 +33,15 @@ async def adminSettingsQuery(
         value = 0
         param = [Key]
         cursor = DBConn.execute("SELECT Value FROM Setting WHERE Name = ?", param)
+        flag = False
         for row in cursor:
             value = row[0]
-        return {"status": 200, "message": "Settings queried successfully.", "value": value}
+            flag = True
+            break
+        if flag:
+            return {"status": 200, "message": "Settings queried successfully.", "value": value}
+        else:
+            return {"status": 202, "message": "Fail to quiery settings"}
 
 
 @router.post("/admin/settings/modify", tags=["users"])

@@ -250,6 +250,39 @@ async def paperQuery(
     return {"status": 200, "message": "Paper queried successfully.", "pids": PIDS}
 
 
+@router.post("/paper/fuzzyquery", tags=["users"])
+async def papeFuzzyrQuery(
+        keywords: str,
+        session_data: Optional[SessionInfo] = Depends(auth.curSession)
+):
+    await auth.checkLogin(session_data)
+    query_type = ['Title', 'Authors', 'Conference', 'Keywords', 'Year']
+    keywordList = jieba.lcut(keywords)
+    keywordList2 = []
+    for kw in keywordList:
+        if kw.strip() != '':
+            keywordList2.append(kw.strip())
+
+    if len(keywordList2) == 0:
+        return {"status": 200, "message": "Paper queried successfully.", "pids": {}}
+
+    PIDS = []
+    with sqlite3.connect(config.DB_PATH) as DBConn:
+        params = [session_data[1].userID]
+        SQL = f"SELECT PID FROM Paper_Meta, Paper, User_Folder WHERE User_Folder.FID = Paper.FID And Paper.PID = Paper_Meta.PID AND UID = ? AND ("
+        for qw in query_type:
+            for kw in keywordList2:
+                SQL += "OR ? LIKE '%?%' "
+                params.append(qw)
+                params.append(kw)
+        SQL += ")"
+        cursor = DBConn.execute(SQL)
+        for row in cursor:
+            PIDS.append(row[0])
+
+    return {"status": 200, "message": "Paper queried successfully.", "pids": PIDS}
+
+
 @router.post("/paper/lock", tags=["users"])
 async def paperLock(
         paper: PaperInfo,
