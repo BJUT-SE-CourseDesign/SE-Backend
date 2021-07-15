@@ -47,7 +47,7 @@ async def adminFolderList(
         for ID in UserID:
             param_uid.append(ID[0])
             break
-        cursor = DBConn.execute("SELECT FID FROM User_Folder WHERE UID = ?", param_uid)
+        cursor = DBConn.execute("SELECT Name, FID FROM User_Folder, Folder WHERE UID = ? AND User_Folder.FID = Folder.FID", param_uid)
         for row in cursor:
             folder = dict()
             folder['folderName'] = row[0]
